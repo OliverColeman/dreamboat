@@ -1,25 +1,56 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { RecoilRoot } from 'recoil';
+import { MuiThemeProvider, createMuiTheme, makeStyles } from '@material-ui/core/styles';
+import { CssBaseline } from '@material-ui/core';
+
+import Controls from './Controls';
+import Visualisation from './Visualisation';
+import Simulation from './Simulation';
+
+
+const theme = createMuiTheme({
+  palette: {
+    type: 'dark',
+  },
+});
+
+
+const useStyles = makeStyles(theme => ({
+  root: {
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'row',
+    
+    '*': {
+      border: '1px solid white',
+      padding: '10px',
+      borderRadius: '5px',
+      boxSizing: 'border-box',
+
+      margin: '10px 0 10px 10px',
+      '&:last-child': {
+        marginRight: '10px'
+      },
+    },
+  }
+}));
+
 
 function App() {
+  const classes = useStyles();
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <RecoilRoot>
+      <MuiThemeProvider theme={theme}>
+        <CssBaseline>
+          <div className={classes.root}>
+            <Simulation />
+            <Controls />
+            <Visualisation />
+          </div>
+        </CssBaseline>
+      </MuiThemeProvider>
+    </RecoilRoot>
   );
 }
 
