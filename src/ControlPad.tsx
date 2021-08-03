@@ -72,10 +72,10 @@ export const MousePad = React.memo(function MousePad() {
 export const KeyPad = React.memo(function KeyPad() {
   const [ coords, setCoords ] = useRecoilState(controlKeyPadState);
   
-  useHotkeys('w', () => setCoords(coords => ({ x: coords.x, y: Math.max(-1, coords.y - 0.1)}) ));
-  useHotkeys('s', () => setCoords(coords => ({ x: coords.x, y: Math.min(1, coords.y + 0.1)}) ));
-  useHotkeys('a', () => setCoords(coords => ({ y: coords.y, x: Math.max(-1, coords.x - 0.1)}) ));
-  useHotkeys('d', () => setCoords(coords => ({ y: coords.y, x: Math.min(1, coords.x + 0.1)}) ));
+  useHotkeys('w', () => setCoords(coords => ({ x: coords.x, y: Math.max(-1, coords.y - 0.05)}) ));
+  useHotkeys('s', () => setCoords(coords => ({ x: coords.x, y: Math.min(1, coords.y + 0.05)}) ));
+  useHotkeys('a', () => setCoords(coords => ({ y: coords.y, x: Math.max(-1, coords.x - 0.05)}) ));
+  useHotkeys('d', () => setCoords(coords => ({ y: coords.y, x: Math.min(1, coords.x + 0.05)}) ));
   
   const classes = useStyles(coords);
 

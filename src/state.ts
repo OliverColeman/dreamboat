@@ -5,6 +5,16 @@ import { maxRPS, maxSpeed, movementMagnitudeThreshold, wheelPositions } from "./
 
 const pi = Math.PI;
 
+export type Dimensions = {
+  width: number,
+  height: number
+}
+
+export const visualisationDimensionsState = atom<Dimensions>({
+  key: 'visualisationDimensionsState',
+  default: {width: 0, height: 0}
+});
+
 
 export type Point = { x: number, y: number }
 
@@ -54,17 +64,19 @@ export type VehicleState = {
   pivotAngle: number
   pivotDistance: number
   pivot:Point
+  error:string|null
 }
 
 export const vehicleState = atom<VehicleState>({
   key: 'VehicleState',
   default: {
-    centre: {x: 7500, y: 7500},
+    centre: {x: 7500, y: 5000},
     rotation: 0,
     wheels: wheelPositions.map(() => ({speed: 0, rotation: 0})),
     pivotAngle: pi/2,
     pivotDistance: Number.POSITIVE_INFINITY,
     pivot: {x: 0, y: 0},
+    error: null,
   }
 });
 
@@ -85,64 +97,79 @@ export const updateVehicleState = ({snapshot, set}: CallbackInterface) => async 
   set(vehicleState, produce(vehicle => {
     if (control2d.some(c => c.magnitude > movementMagnitudeThreshold)) {
       const {centre: {x, y}, rotation} = vehicle;
+      const maxDeltaPerFrame = maxSpeed / frameRate;
       const maxRotateAnglePerFrame = (maxRPS / frameRate) * pi * 2;
 
-      // Polar coordinates for the pivot point (point to be rotated around).
-      let pivotAngle = 0, pivotDistance=0;
-
-      let direction = control2d[0].radians;
+      const direction = control2d[0].radians;
       
       // How far the vehicle will move this step.
-      const delta = control2d[0].magnitude * maxSpeed / frameRate;
+      const delta = control2d[0].magnitude;
+      const deltaStep = delta * maxDeltaPerFrame;
 
-      // How far the vehicle will move this step.
-      const turnRate = Math.abs(control2d[1].x); // control2d[1].magnitude;
-      let turnAngleOffset = control2d[1].radians;
-      
-      const translating = delta > movementMagnitudeThreshold;
-      const turning = turnRate > movementMagnitudeThreshold;
+      // How much the vehicle will turn this step.
+      const turnRate = mode === DriveMode.TWIST_AND_SHOUT ? control2d[1].magnitude : Math.abs(control2d[1].x);
+      const turnRateStep = turnRate * maxRotateAnglePerFrame;
+
+      const isTranslating = delta > movementMagnitudeThreshold;
+      const isTurning = turnRate > movementMagnitudeThreshold;
       
       // Polar coordinates for the pivot point (point to be rotated around).
-      pivotDistance = delta * (turning ? 20 / turnRate : 10000000); //Number.MAX_VALUE;
-
-      let rotationDelta = 0, pivot:Point = {x: 0, y:0}
+      let pivotAngle = 0; // determined by control method.
+      const pivotDistance = delta * (isTurning ? 2500 / turnRate : 10000000);
+      
+      // The amount the vehicle will rotate around the pivot point.
+      let rotationDelta = 0; // determined by control method.
       
       // control1 determines relative direction, control2 spin rate and pivot point.
       if (mode === DriveMode.TWIST_AND_SHOUT) {
-        pivotAngle = direction + pi/2 + (turning ? turnAngleOffset : 0);
-
-        // The angle the vehicle will rotate around the pivot point.
-        rotationDelta = !translating ? maxRotateAnglePerFrame * turnRate : Math.sign(pivotDistance) * Math.atan2(delta, Math.abs(pivotDistance));
-        if (turning && (turnAngleOffset < -pi/2 || turnAngleOffset > pi/2)) rotationDelta = -rotationDelta;
+        pivotAngle = control2d[1].radians;
+        rotationDelta = !isTranslating 
+          ? turnRateStep * Math.sign(control2d[1].x)
+          : Math.atan2(deltaStep, Math.abs(pivotDistance))
+            * (Math.sign(control2d[1].x) || 1) 
+            * -Math.sign(control2d[0].y);
       }
 
       // control1 determines absolute direction, control2 spin rate.
       else if (mode === DriveMode.DAY_TRIPPER) {
-        pivotAngle = direction + pi/2 - rotation;
+        pivotAngle = direction + pi/2 - rotation + (control2d[1].x >= 0 ? 0 : -pi);
       
-        // The angle the vehicle will rotate around the pivot point.
-        rotationDelta = !translating ? maxRotateAnglePerFrame * turnRate : Math.atan2(delta, pivotDistance);
+        rotationDelta = !isTranslating 
+          ? turnRateStep * Math.sign(control2d[1].x)
+          : Math.atan2(deltaStep, pivotDistance) 
+            * (Math.sign(control2d[1].x) || 1);
       }
       else if (mode === DriveMode.BABY_YOU_CAN_DRIVE_MY_CAR) {
-        turnAngleOffset = control2d[1].x > 0 ? 0 : -pi * Math.sign(control2d[0].y);
-
-        pivotAngle = (control2d[0].y < 0 ? 0 : pi) + (turning ? turnAngleOffset : 0);
+        pivotAngle = control2d[1].x >= 0 ? 0 : -pi;
         
-        // The angle the vehicle will rotate around the pivot point.
-        rotationDelta = !translating ? maxRotateAnglePerFrame * turnRate : Math.sign(pivotDistance) * Math.atan2(delta, Math.abs(pivotDistance));
-        if (turning && (turnAngleOffset < -pi/2 || turnAngleOffset > pi/2)) rotationDelta = -rotationDelta;
-        
+        rotationDelta = !isTranslating 
+          ? turnRateStep * Math.sign(control2d[1].x)
+          : Math.atan2(deltaStep, Math.abs(pivotDistance))
+            * (Math.sign(control2d[1].x) || 1) 
+            * -Math.sign(control2d[0].y);
       }
       
       // Cartesian coordinates for the pivot point.
-      pivot.x = Math.cos(rotation + pivotAngle) * pivotDistance;
-      pivot.y = Math.sin(rotation + pivotAngle) * pivotDistance;
+      const pivot:Point = {
+        x: Math.cos(rotation + pivotAngle) * pivotDistance,
+        y: Math.sin(rotation + pivotAngle) * pivotDistance,
+      }
 
-      if (rotationDelta < -maxRotateAnglePerFrame) rotationDelta = -maxRotateAnglePerFrame;
-      if (rotationDelta > maxRotateAnglePerFrame) rotationDelta = maxRotateAnglePerFrame;
+      // Ensure rotation rate does not exceed maximum (something wrong with code above if it does).
+      if (Math.abs(rotationDelta) > maxRotateAnglePerFrame) {
+        console.error("Maximum rotation rate exceeded");
+        vehicle.error = "Maximum rotation rate exceeded";
+        return;
+      }
 
       let deltaX = pivot.x - pivot.x * Math.cos(rotationDelta) + pivot.y * Math.sin(rotationDelta);
       let deltaY = pivot.y - pivot.x * Math.sin(rotationDelta) - pivot.y * Math.cos(rotationDelta);
+
+      if (vecLen(x - deltaX, y - deltaY) > maxDeltaPerFrame) {
+        console.error("Maximum speed exceeded");
+        vehicle.error = "Maximum speed exceeded";
+        return;
+      }
       
       vehicle.centre.x += deltaX;
       vehicle.centre.y += deltaY;
@@ -168,8 +195,8 @@ export const updateVehicleState = ({snapshot, set}: CallbackInterface) => async 
 // const rad2Deg = (r:number) => r/pi*180;
 const vecLen = (x:number, y:number) => Math.sqrt(x*x + y*y);
 
-const constrainRange = (x:number, min:number, max:number) => {
-  if (x < min) return min;
-  if (x > max) return max;
-  return x;
-}
+// const constrainRange = (x:number, min:number, max:number) => {
+//   if (x < min) return min;
+//   if (x > max) return max;
+//   return x;
+// }

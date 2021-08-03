@@ -1,29 +1,45 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import TextField from '@material-ui/core/TextField';
-import { useRecoilState, useResetRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil';
 
-import { controlKeyPadState, driveModeState, frameRateState, vehicleState } from './state';
+import { controlKeyPadState, driveModeState, frameRateState, vehicleState, visualisationDimensionsState } from './state';
 import { MousePad, KeyPad } from './ControlPad';
 import { Button } from '@material-ui/core';
 import DriveModeSelector from './DriveModeSelector';
 
 
 export default function Controls() {
+  const visualisationDimensions = useRecoilValue(visualisationDimensionsState);
   const [ frameRate, setFrameRate ] = useRecoilState(frameRateState);
+
+  const resetVehicleState = useResetRecoilState(vehicleState)
+  const setVehicleState = useSetRecoilState(vehicleState);
   
-  const resetVehicleState = useResetRecoilState(vehicleState);
+  const updateVehicleState = useCallback((reset:boolean) => {
+    reset && resetVehicleState();
+    setVehicleState(current => ({
+      ...current,
+      centre: { x: visualisationDimensions.width/2, y: visualisationDimensions.height/2}
+    }));
+  }, [visualisationDimensions, setVehicleState, resetVehicleState])
+  
+  useEffect(
+    () => updateVehicleState(false),
+    [updateVehicleState, visualisationDimensions]
+  )
+  
   const resetControlKeyPadState = useResetRecoilState(controlKeyPadState);
   // const resetControl1DState = useResetRecoilState(control1DState);
   const resetFrameRateState = useResetRecoilState(frameRateState);
   const resetDriveMode = useResetRecoilState(driveModeState);
 
   const reset = useCallback(() => {
-    resetVehicleState();
+    updateVehicleState(true);
     resetControlKeyPadState();
     // resetControl1DState();
     resetFrameRateState();
     resetDriveMode();
-  }, [resetVehicleState, resetControlKeyPadState, resetFrameRateState, resetDriveMode]);
+  }, [updateVehicleState, resetControlKeyPadState, resetFrameRateState, resetDriveMode]);
   
   return (
     <div className="Controls">

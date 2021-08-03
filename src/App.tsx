@@ -43,8 +43,10 @@ function App() {
     <RecoilRoot>
       <MuiThemeProvider theme={theme}>
         <CssBaseline>
-          <div className={classes.root}>
-            <Simulation />
+          <div 
+            className={classes.root}
+          >
+            <Simulation/>
             <Controls />
             <Visualisation />
           </div>

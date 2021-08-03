@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Konva from 'konva';
 import { Stage, Layer, Rect, Group, Line, Circle } from 'react-konva';
-import { useRecoilValue } from 'recoil';
+import { useRecoilValue, useSetRecoilState } from 'recoil';
 import {useMeasure} from 'react-use';
 
-import { vehicleState } from './state';
+import { vehicleState, visualisationDimensionsState } from './state';
 import { makeStyles } from '@material-ui/core';
-import { bedSize, visualScale as scale, wheelDiameter, wheelPositions, wheelWidth } from './constants';
+import { bedSize, visualScale as scale, visualScale, wheelDiameter, wheelPositions, wheelWidth } from './constants';
 
 
 Konva.angleDeg = false;
@@ -20,9 +20,15 @@ const useStyles = makeStyles(theme => ({
 
 
 export default function Visualisation() {
+  const setVisualisationDimensionsState = useSetRecoilState(visualisationDimensionsState);
   const vehicle = useRecoilValue(vehicleState);
 
   const [ref, { width, height }] = useMeasure();
+
+  useEffect(
+    () => setVisualisationDimensionsState({width:width/visualScale, height:height/visualScale}),
+    [setVisualisationDimensionsState, width, height]
+  );
 
   const classes = useStyles();
 
