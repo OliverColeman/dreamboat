@@ -2,7 +2,7 @@ export const maxSpeed = 5 * (1000*1000)/(60*60); // mm/s  (There are (1000*1000)
 export const maxRPS = 0.1; // Revolutions/second
 export const movementMagnitudeThreshold = 0.03;
 
-export const visualScale = 0.05; // px/mm
+export const visualScale = 0.07; // px/mm
 
 export const bedSize = [ 1530, 2030 ]
 export const wheelCentreMargin = 250;

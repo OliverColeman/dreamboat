@@ -50,8 +50,8 @@ export default function Visualisation() {
           { gridlines }
           
           <Group
-            {...vehicle.centre}
-            rotation={vehicle.rotation}
+            {...vehicle.centreAbs}
+            rotation={vehicle.rotationPredicted}
           >
             <Circle offsetY={bedSize[1]/2} radius={100} fill="orange" />
             <Rect 
@@ -80,10 +80,10 @@ export default function Visualisation() {
             )}
           </Group>
 
-          <Line points={[vehicle.centre.x, vehicle.centre.y, vehicle.pivot.x, vehicle.pivot.y]} stroke="pink" strokeWidth={0.5/scale} />
+          <Line points={[vehicle.centreAbs.x, vehicle.centreAbs.y, vehicle.pivotAbs.x, vehicle.pivotAbs.y]} stroke="pink" strokeWidth={0.5/scale} />
           <Circle 
-            x={vehicle.pivot.x}
-            y={vehicle.pivot.y}
+            x={vehicle.pivotAbs.x}
+            y={vehicle.pivotAbs.y}
             radius={100}
             stroke="pink" 
             strokeWidth={2/scale}

@@ -19,7 +19,7 @@ export default function Controls() {
     reset && resetVehicleState();
     setVehicleState(current => ({
       ...current,
-      centre: { x: visualisationDimensions.width/2, y: visualisationDimensions.height/2}
+      centreAbs: { x: visualisationDimensions.width/2, y: visualisationDimensions.height/2}
     }));
   }, [visualisationDimensions, setVehicleState, resetVehicleState])
   
