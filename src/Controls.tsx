@@ -1,46 +1,45 @@
-import React, { useCallback, useEffect } from 'react';
-import TextField from '@material-ui/core/TextField';
-import { useRecoilState, useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil';
+import React, { useCallback, useEffect } from 'react'
+import TextField from '@material-ui/core/TextField'
+import { useRecoilState, useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil'
 
-import { control2DFamily, driveModeState, frameRateState, vehicleState, visualisationDimensionsState } from './state';
-import { MousePad, KeyPad } from './ControlPad';
-import { Button } from '@material-ui/core';
-import DriveModeSelector from './DriveModeSelector';
+import { control2DFamily, driveModeState, frameRateState, vehicleState, visualisationDimensionsState } from './state'
+import { MousePad, KeyPad } from './ControlPad'
+import { Button } from '@material-ui/core'
+import DriveModeSelector from './DriveModeSelector'
 
-
-export default function Controls() {
-  const visualisationDimensions = useRecoilValue(visualisationDimensionsState);
-  const [ frameRate, setFrameRate ] = useRecoilState(frameRateState);
+export default function Controls () {
+  const visualisationDimensions = useRecoilValue(visualisationDimensionsState)
+  const [frameRate, setFrameRate] = useRecoilState(frameRateState)
 
   const resetVehicleState = useResetRecoilState(vehicleState)
-  const setVehicleState = useSetRecoilState(vehicleState);
-  
+  const setVehicleState = useSetRecoilState(vehicleState)
+
   const updateVehicleState = useCallback((reset:boolean) => {
-    reset && resetVehicleState();
+    reset && resetVehicleState()
     setVehicleState(current => ({
       ...current,
-      centreAbs: { x: visualisationDimensions.width/2, y: visualisationDimensions.height/2}
-    }));
+      centreAbs: { x: visualisationDimensions.width / 2, y: visualisationDimensions.height / 2 },
+    }))
   }, [visualisationDimensions, setVehicleState, resetVehicleState])
-  
+
   useEffect(
     () => updateVehicleState(false),
     [updateVehicleState, visualisationDimensions]
   )
-  
-  const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'));
+
+  const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'))
   // const resetControl1DState = useResetRecoilState(control1DState);
-  const resetFrameRateState = useResetRecoilState(frameRateState);
-  const resetDriveMode = useResetRecoilState(driveModeState);
+  const resetFrameRateState = useResetRecoilState(frameRateState)
+  const resetDriveMode = useResetRecoilState(driveModeState)
 
   const reset = useCallback(() => {
-    updateVehicleState(true);
-    resetControlKeyPadState();
+    updateVehicleState(true)
+    resetControlKeyPadState()
     // resetControl1DState();
-    resetFrameRateState();
-    resetDriveMode();
-  }, [updateVehicleState, resetControlKeyPadState, resetFrameRateState, resetDriveMode]);
-  
+    resetFrameRateState()
+    resetDriveMode()
+  }, [updateVehicleState, resetControlKeyPadState, resetFrameRateState, resetDriveMode])
+
   return (
     <div className="Controls">
       <h4>Direction</h4>
@@ -54,16 +53,16 @@ export default function Controls() {
 
       <h4>Drive mode</h4>
       <DriveModeSelector />
-      
+
       <h4>Settings</h4>
-      <TextField 
+      <TextField
           id="framerate"
           label="Frame rate (FPS)"
           type="number"
           InputLabelProps={{
             shrink: true,
           }}
-          InputProps={{ inputProps: { min: "1", max: "30" } }}
+          InputProps={{ inputProps: { min: '1', max: '30' } }}
           variant="filled"
           value={frameRate}
           onChange={e => setFrameRate(parseInt(e.target.value))}

@@ -1,26 +1,24 @@
-import React from 'react';
-import { RecoilRoot } from 'recoil';
-import { MuiThemeProvider, createMuiTheme, makeStyles } from '@material-ui/core/styles';
-import { CssBaseline } from '@material-ui/core';
+import React from 'react'
+import { RecoilRoot } from 'recoil'
+import { MuiThemeProvider, createMuiTheme, makeStyles } from '@material-ui/core/styles'
+import { CssBaseline } from '@material-ui/core'
 
-import Controls from './Controls';
-import Visualisation from './Visualisation';
-import Simulation from './Simulation';
-
+import Controls from './Controls'
+import Visualisation from './Visualisation'
+import Simulation from './Simulation'
 
 const theme = createMuiTheme({
   palette: {
     type: 'dark',
   },
-});
+})
 
-
-const useStyles = makeStyles(theme => ({
+const useStyles = makeStyles(() => ({
   root: {
     height: '100vh',
     display: 'flex',
     flexDirection: 'row',
-    
+
     '*': {
       border: '1px solid white',
       padding: '10px',
@@ -29,21 +27,20 @@ const useStyles = makeStyles(theme => ({
 
       margin: '10px 0 10px 10px',
       '&:last-child': {
-        marginRight: '10px'
+        marginRight: '10px',
       },
     },
-  }
-}));
+  },
+}))
 
-
-function App() {
-  const classes = useStyles();
+function App () {
+  const classes = useStyles()
 
   return (
     <RecoilRoot>
       <MuiThemeProvider theme={theme}>
         <CssBaseline>
-          <div 
+          <div
             className={classes.root}
           >
             <Simulation/>
@@ -53,7 +50,7 @@ function App() {
         </CssBaseline>
       </MuiThemeProvider>
     </RecoilRoot>
-  );
+  )
 }
 
-export default App;
+export default App
