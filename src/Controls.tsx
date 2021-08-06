@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import TextField from '@material-ui/core/TextField';
 import { useRecoilState, useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil';
 
-import { controlKeyPadState, driveModeState, frameRateState, vehicleState, visualisationDimensionsState } from './state';
+import { control2DFamily, driveModeState, frameRateState, vehicleState, visualisationDimensionsState } from './state';
 import { MousePad, KeyPad } from './ControlPad';
 import { Button } from '@material-ui/core';
 import DriveModeSelector from './DriveModeSelector';
@@ -28,7 +28,7 @@ export default function Controls() {
     [updateVehicleState, visualisationDimensions]
   )
   
-  const resetControlKeyPadState = useResetRecoilState(controlKeyPadState);
+  const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'));
   // const resetControl1DState = useResetRecoilState(control1DState);
   const resetFrameRateState = useResetRecoilState(frameRateState);
   const resetDriveMode = useResetRecoilState(driveModeState);

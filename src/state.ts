@@ -1,4 +1,4 @@
-import { atom } from "recoil";
+import { atom, atomFamily } from "recoil";
 import { wheelPositions } from "./constants";
 
 export type Dimensions = {
@@ -12,17 +12,13 @@ export const visualisationDimensionsState = atom<Dimensions>({
 });
 
 
-export type Point = { x: number, y: number }
+export type Vec2 = { x: number, y: number }
+export type Polar = { r: number, a: number }
+export type Coord = Vec2 & Polar
 
-
-export const controlMouseState = atom<Point>({
-  key: 'controlMouseState',
-  default: {x: 0, y: 0}
-});
-
-export const controlKeyPadState = atom<Point>({
-  key: 'controlKeyPadState',
-  default: {x: 0, y: 0}
+export const control2DFamily = atomFamily<Coord, string>({
+  key: 'control2d',
+  default: {x: 0, y: 0, r: 0, a: 0}
 });
 
 export const control1DState = atom<number>({
@@ -54,12 +50,11 @@ export type WheelState = {
 }
 
 export type VehicleState = {
-  centreAbs: Point
+  centreAbs: Vec2
   rotationPredicted: number
   wheels: WheelState[]
-  pivotAngle: number
-  pivotDistance: number
-  pivotAbs:Point
+  pivot: Coord
+  pivotAbs:Vec2
   error:string|null
 }
 
@@ -69,8 +64,8 @@ export const vehicleState = atom<VehicleState>({
     centreAbs: {x: 7500, y: 5000},
     rotationPredicted: 0,
     wheels: wheelPositions.map(() => ({speed: 0, rotation: 0})),
-    pivotAngle: Math.PI,
-    pivotDistance: Number.POSITIVE_INFINITY,
+    pivot: {x: 0, y: 0, r: 0, a: 0},
+    // pivotDistance: Number.POSITIVE_INFINITY,
     pivotAbs: {x: 0, y: 0},
     error: null,
   }
