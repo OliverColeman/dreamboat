@@ -1,15 +1,14 @@
 import React, { useCallback, useEffect } from 'react'
-import TextField from '@material-ui/core/TextField'
-import { useRecoilState, useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil'
+import { useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil'
 
-import { control2DFamily, driveModeState, frameRateState, vehicleState, visualisationDimensionsState } from './state'
+import { control2DFamily, driveModeState, vehicleState, visualisationDimensionsState } from './state'
 import { MousePad, KeyPad } from './ControlPad'
-import { Button } from '@material-ui/core'
+import { Box, Button } from '@material-ui/core'
 import DriveModeSelector from './DriveModeSelector'
+import { rad2Deg } from './util'
 
 export default function Controls () {
   const visualisationDimensions = useRecoilValue(visualisationDimensionsState)
-  const [frameRate, setFrameRate] = useRecoilState(frameRateState)
 
   const resetVehicleState = useResetRecoilState(vehicleState)
   const setVehicleState = useSetRecoilState(vehicleState)
@@ -28,47 +27,53 @@ export default function Controls () {
   )
 
   const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'))
-  // const resetControl1DState = useResetRecoilState(control1DState);
-  const resetFrameRateState = useResetRecoilState(frameRateState)
   const resetDriveMode = useResetRecoilState(driveModeState)
 
   const reset = useCallback(() => {
     updateVehicleState(true)
     resetControlKeyPadState()
-    // resetControl1DState();
-    resetFrameRateState()
     resetDriveMode()
-  }, [updateVehicleState, resetControlKeyPadState, resetFrameRateState, resetDriveMode])
+  }, [updateVehicleState, resetControlKeyPadState, resetDriveMode])
 
   return (
     <div className="Controls">
-      <h4>Direction</h4>
       <KeyPad />
-
-      {/* <h4>Spin rate</h4>
-      <KeySlider /> */}
-
-      <h4>Pivot point</h4>
       <MousePad />
-
-      <h4>Drive mode</h4>
       <DriveModeSelector />
-
-      <h4>Settings</h4>
-      <TextField
-          id="framerate"
-          label="Frame rate (FPS)"
-          type="number"
-          InputLabelProps={{
-            shrink: true,
-          }}
-          InputProps={{ inputProps: { min: '1', max: '30' } }}
-          variant="filled"
-          value={frameRate}
-          onChange={e => setFrameRate(parseInt(e.target.value))}
-        />
-
-        <Button onClick={reset}>Reset</Button>
+      <Button onClick={reset}>Reset</Button>
+      <Stats/>
     </div>
   )
 }
+
+const Stats = () => {
+  const vehicle = useRecoilValue(vehicleState)
+  const control2d = [
+    useRecoilValue(control2DFamily('wasd')),
+    useRecoilValue(control2DFamily('mouse')),
+  ]
+
+  const stats = [
+    ['speed', vehicle.speedPredicted, null, 'Predicted speed'],
+    ['rotation', formatAngle(vehicle.rotationPredicted), null, 'Predicted rotation'],
+    ['pivot c', vehicle.pivot.x.toFixed(0), vehicle.pivot.y.toFixed(0), 'Current relative pivot point coordinates'],
+    ['pivot p', formatAngle(vehicle.pivot.a), vehicle.pivot.r.toFixed(0), 'Current relative pivot point coordinates polar'],
+    ['location', vehicle.centreAbs.x.toFixed(0), vehicle.centreAbs.y.toFixed(0), 'Predicted absolute vehicle center coordinates'],
+    ...control2d.map((c, i) => [
+      `control${i}`, formatAngle(c.a), formatMagnitude(c.r), `Control ${i} angle and magnitude`,
+    ]),
+  ]
+
+  return (
+    <Box display="grid" gridTemplateColumns="2fr 1fr 1fr">
+      {stats.map((row, ri) => row.slice(0, 3).map((v, ci) =>
+        <Box key={`${ri}-${ci}`}>
+          <span title={'' + row[3]}>{v}</span>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+const formatAngle = (a:number) => `${rad2Deg(a).toFixed(1)}°`
+const formatMagnitude = (v:number) => `${(v * 100).toFixed(0)}%`

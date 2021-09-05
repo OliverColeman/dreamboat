@@ -1,25 +1,30 @@
 import React from 'react'
 import { useRecoilState } from 'recoil'
 
-import { DriveMode, driveModeState } from './state'
+import { driveModeState } from './state'
 import { FormControlLabel, Radio, RadioGroup } from '@material-ui/core'
-import { enumValues } from './util'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { DriveMode } from './constants'
 
-const driveModeLabel = (mode:DriveMode) => DriveMode[mode].toString().replaceAll('_', ' ').toLowerCase()
+const driveModeLabel = (mode:DriveMode) => mode.replaceAll('_', ' ').toLowerCase()
 
 export default function DriveModeSelector () {
   const [driveMode, setDriveMode] = useRecoilState(driveModeState)
 
-  useHotkeys('1', () => setDriveMode(0))
-  useHotkeys('2', () => setDriveMode(1))
-  useHotkeys('3', () => setDriveMode(2))
+  useHotkeys('1', () => setDriveMode(DriveMode.DRIVE_MY_CAR))
+  useHotkeys('2', () => setDriveMode(DriveMode.DAY_TRIPPER))
+  useHotkeys('3', () => setDriveMode(DriveMode.TWIST_AND_SHOUT))
 
   return (
-    <RadioGroup aria-label="drive mode" name="drivemode" value={driveMode} onChange={(e, v) => setDriveMode(parseInt(v))}>
-      { enumValues(DriveMode).map((value) =>
+    <RadioGroup
+      aria-label="drive mode"
+      name="drivemode"
+      value={driveMode}
+      onChange={(e, v) => setDriveMode(v as DriveMode)}
+    >
+      { Object.keys(DriveMode).map((value) =>
         <FormControlLabel
-          value={value as number}
+          value={value as DriveMode}
           control={<Radio />}
           label={driveModeLabel(value as DriveMode)}
           key={`drivemodeoption-${value}`}

@@ -2,9 +2,10 @@ import React, { useCallback, PointerEvent } from 'react'
 import { makeStyles } from '@material-ui/core'
 import { useRecoilState } from 'recoil'
 
-import { control2DFamily, Vec2 } from './state'
+import { control2DFamily } from './state'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { vecLen } from './util'
+import { constrainRange, getCoordFromPoint, getCoordFromPolar, vecLen } from './util'
+import { Point } from './types'
 
 const size = 241
 const pointSize = 10
@@ -31,7 +32,7 @@ const useStyles = makeStyles(() => ({
     height: 1,
     backgroundColor: '#333',
   },
-  value: (coords:Vec2) => ({
+  value: (coords:Point) => ({
     position: 'absolute',
     top: (coords.y / 2 + 0.5) * size - pointSize / 2,
     left: (coords.x / 2 + 0.5) * size - pointSize / 2,
@@ -42,12 +43,6 @@ const useStyles = makeStyles(() => ({
   }),
 }))
 
-const deriveState = (c: Vec2) => ({
-  ...c,
-  a: Math.atan2(c.y, c.x),
-  r: Math.min(1, vecLen(c.x, c.y)),
-})
-
 export const MousePad = React.memo(function MousePad () {
   const [coords, setCoords] = useRecoilState(control2DFamily('mouse'))
 
@@ -55,7 +50,7 @@ export const MousePad = React.memo(function MousePad () {
     // Get relative mouse coordinates scaled to [-1, 1]
     const x = ((e.clientX - e.currentTarget.offsetLeft) / e.currentTarget.clientWidth) * 2 - 1
     const y = ((e.clientY - e.currentTarget.offsetTop) / e.currentTarget.clientHeight) * 2 - 1
-    setCoords(deriveState({ x, y }))
+    setCoords(updateCoord(x, y))
   }, [setCoords])
 
   const classes = useStyles(coords)
@@ -64,7 +59,7 @@ export const MousePad = React.memo(function MousePad () {
     <div
       className={classes.root}
       onPointerMove={pointerMoveHandler}
-      onPointerLeave={() => setCoords(deriveState({ x: 0, y: 0 }))}
+      onPointerLeave={() => setCoords(updateCoord(0, 0))}
     >
       <div className={classes.vertAxis} />
       <div className={classes.horzAxis} />
@@ -76,10 +71,15 @@ export const MousePad = React.memo(function MousePad () {
 export const KeyPad = React.memo(function KeyPad () {
   const [c, setCoords] = useRecoilState(control2DFamily('wasd'))
 
-  useHotkeys('w', () => setCoords(c => deriveState({ ...c, y: Math.max(-1, c.y - 0.05) })))
-  useHotkeys('s', () => setCoords(c => deriveState({ ...c, y: Math.min(1, c.y + 0.05) })))
-  useHotkeys('a', () => setCoords(c => deriveState({ ...c, x: Math.max(-1, c.x - 0.05) })))
-  useHotkeys('d', () => setCoords(c => deriveState({ ...c, x: Math.min(1, c.x + 0.05) })))
+  useHotkeys('w', () => setCoords(c => updateCoord(c.x, c.y - 0.05)))
+  useHotkeys('x', () => setCoords(c => updateCoord(c.x, c.y + 0.05)))
+  useHotkeys('a', () => setCoords(c => updateCoord(c.x - 0.05, c.y)))
+  useHotkeys('d', () => setCoords(c => updateCoord(c.x + 0.05, c.y)))
+  useHotkeys('s', () => setCoords(c => updateCoord(0, 0)))
+
+  // useHotkeys('s', () => setCoords(c => getCoordFromPoint({ ...c, y: Math.min(1, c.y + 0.05) })))
+  // useHotkeys('a', () => setCoords(c => getCoordFromPoint({ ...c, x: Math.max(-1, c.x - 0.05) })))
+  // useHotkeys('d', () => setCoords(c => getCoordFromPoint({ ...c, x: Math.min(1, c.x + 0.05) })))
 
   const classes = useStyles(c)
 
@@ -93,3 +93,11 @@ export const KeyPad = React.memo(function KeyPad () {
     </div>
   )
 })
+
+const updateCoord = (x:number, y:number) => {
+  x = constrainRange(x, -1, 1)
+  y = constrainRange(y, -1, 1)
+  let { a, r } = getCoordFromPoint({ x, y })
+  r = constrainRange(r, 0, 1)
+  return getCoordFromPolar({ a, r })
+}

@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react'
 import Konva from 'konva'
-import { Stage, Layer, Rect, Group, Line, Circle } from 'react-konva'
+import { Stage, Layer, Rect, Group, Line, Circle, Text } from 'react-konva'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { useMeasure } from 'react-use'
 
 import { vehicleState, visualisationDimensionsState } from './state'
 import { makeStyles } from '@material-ui/core'
 import { bedSize, visualScale as scale, visualScale, wheelDiameter, wheelPositions, wheelWidth } from './constants'
+import { Coord, WheelState } from './types'
 
 Konva.angleDeg = false
 
@@ -52,43 +53,82 @@ export default function Visualisation () {
             {...vehicle.centreAbs}
             rotation={vehicle.rotationPredicted}
           >
-            <Circle offsetY={bedSize[1] / 2} radius={100} fill="orange" />
+            <Circle offsetY={bedSize.height / 2} radius={100} fill="orange" />
             <Rect
-              width={bedSize[0]}
-              height={bedSize[1]}
-              offsetX={bedSize[0] / 2}
-              offsetY={bedSize[1] / 2}
+              width={bedSize.width}
+              height={bedSize.height}
+              offsetX={bedSize.width / 2}
+              offsetY={bedSize.height / 2}
               fill="#098"
             />
 
             { vehicle.wheels.map((wheel, idx) =>
-              <Group key={`wheel-${idx}`}
-                x={wheelPositions[idx][0]}
-                y={wheelPositions[idx][1]}
-                rotation={wheel.rotation}
+              <Group
+                key={`wheel-${idx}`}
+                {...wheelPositions[idx]}
               >
-                <Circle offsetX={-wheelDiameter / 2} radius={wheelWidth / 2} fill="orange" />
-                <Rect
-                  width={wheelDiameter}
-                  height={wheelWidth}
-                  offsetX={wheelDiameter / 2}
-                  offsetY={wheelWidth / 2}
-                  fill="#333"
+                <Wheel
+                  state={wheel}
+                  colour="rgba(63, 63, 63, 1)"
+                />
+                <Wheel
+                  state={vehicle.wheelsTarget[idx]}
+                  colour="rgba(63, 63, 63, 0.5)"
+                />
+                <Text
+                  text={'' + idx} fontSize={150} fill="white"
+                  x={-40} y={-55}
                 />
               </Group>
             )}
-          </Group>
 
-          <Line points={[vehicle.centreAbs.x, vehicle.centreAbs.y, vehicle.pivotAbs.x, vehicle.pivotAbs.y]} stroke="pink" strokeWidth={0.5 / scale} />
-          <Circle
-            x={vehicle.pivotAbs.x}
-            y={vehicle.pivotAbs.y}
-            radius={100}
-            stroke="pink"
-            strokeWidth={2 / scale}
-          />
+            <Line
+              points={[vehicle.pivotTarget.x, vehicle.pivotTarget.y, vehicle.pivot.x, vehicle.pivot.y]}
+              stroke="green" strokeWidth={0.5 / scale}
+            />
+
+            <Pivot pivot={vehicle.pivotTarget} label="T" />
+            <Pivot pivot={vehicle.pivot} label="C" />
+          </Group>
         </Layer>
       </Stage>
     </div>
   )
 }
+
+type PivotProps = {pivot:Coord, label: string}
+const Pivot:React.FC<PivotProps> = ({ pivot, label }) => (<>
+  <Line
+    points={[0, 0, pivot.x, pivot.y]}
+    stroke="blue" strokeWidth={0.5 / scale}
+  />
+  <Circle
+    x={pivot.x}
+    y={pivot.y}
+    radius={100}
+    stroke="blue"
+    strokeWidth={2 / scale}
+  />
+  <Text
+    text={label}
+    fontSize={150} fill="white"
+    x={pivot.x - 45}
+    y={pivot.y - 60}
+  />
+</>)
+
+type WheelProps = {state:WheelState, colour: string}
+const Wheel:React.FC<WheelProps> = ({ state, colour }) => (
+  <Group
+    rotation={state.rotation}
+  >
+    <Circle offsetY={wheelDiameter / 2} radius={wheelWidth / 2} fill="orange" />
+    <Rect
+      width={wheelWidth}
+      height={wheelDiameter}
+      offsetX={wheelWidth / 2}
+      offsetY={wheelDiameter / 2}
+      fill={colour}
+    />
+  </Group>
+)
