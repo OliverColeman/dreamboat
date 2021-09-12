@@ -62,6 +62,9 @@ const Stats = () => {
     ...control2d.map((c, i) => [
       `control${i}`, formatAngle(c.a), formatMagnitude(c.r), `Control ${i} angle and magnitude`,
     ]),
+    ...vehicle.wheels.map((w, i) => [
+      `w${i}`, `${formatAngle(w.rotation, 0)} ${w.flipped ? 'F' : ''}`, w.speed.toFixed(1), `Wheel ${i}`,
+    ]),
   ]
 
   return (
@@ -75,5 +78,5 @@ const Stats = () => {
   )
 }
 
-const formatAngle = (a:number) => `${rad2Deg(a).toFixed(1)}°`
+const formatAngle = (a:number, precision:number = 1) => `${rad2Deg(a).toFixed(precision)}°`
 const formatMagnitude = (v:number) => `${(v * 100).toFixed(0)}%`

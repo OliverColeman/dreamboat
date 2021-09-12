@@ -28,8 +28,8 @@ export const vehicleState = atom<VehicleState>({
   default: {
     centreAbs: { x: 7500, y: 5000 },
     rotationPredicted: 0,
-    wheels: wheelPositions.map(() => ({ speed: 0, rotation: 0 })),
-    wheelsTarget: wheelPositions.map(() => ({ speed: 0, rotation: 0 })),
+    wheels: wheelPositions.map(() => ({ speed: 0, rotation: 0, flipped: false })),
+    wheelsTarget: wheelPositions.map(() => ({ speed: 0, rotation: 0, flipped: false })),
     pivot: getCoordFromPolar({ r: 10000, a: 0 }),
     pivotTarget: getCoordFromPolar({ r: 10000, a: 0 }),
     pivotAbs: { x: 0, y: 0 },

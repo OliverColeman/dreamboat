@@ -5,7 +5,7 @@ export const frameRate = 10 // Per second.
 export const maxSpeed = 5 * (1000 * 1000) / (60 * 60) // mm/s  (There are (1000*1000)/(60*60) mm/s in 1 km/h)
 export const maxRPS = 0.1 // Revolutions/second
 export const movementMagnitudeThreshold = 0.03
-export const maxWheelSteerRPS = 0.5 // 60 RPM
+export const maxWheelSteerRPS = 1 // 60 RPM
 
 export const visualScale = 0.1 // px/mm
 

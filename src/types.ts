@@ -18,6 +18,8 @@ export type WheelState = {
   speed: number
   /** Desired rotation relative to vehicle */
   rotation: number
+  /** Is the wheel direction currently flipped 180 degrees. */
+  flipped: boolean
 }
 
 /** Current state of vehicle */
