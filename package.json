@@ -13,6 +13,7 @@
     "@types/node": "^12.20.15",
     "@types/react": "^17.0.11",
     "@types/react-dom": "^17.0.7",
+    "cross-env": "^7.0.3",
     "immer": "^9.0.3",
     "konva": "^8.0.4",
     "lodash": "^4.17.21",
@@ -31,29 +32,33 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "lint": "npx eslint src/** --fix"
+    "lint": "npx eslint src/** --fix",
+    "electron:start": "concurrently -k \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && electronmon .\""
   },
+  "homepage": "./",
+  "main": "./public/electron.js",
   "browserslist": {
     "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
+      "last 1 electron version"
     ],
     "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
+      "last 1 electron version"
     ]
   },
   "devDependencies": {
     "@types/lodash": "^4.14.172",
     "@typescript-eslint/eslint-plugin": "^4.29.0",
     "@typescript-eslint/parser": "^4.29.0",
+    "concurrently": "^6.2.1",
+    "electron": "^14.0.1",
+    "electron-builder": "^22.11.7",
+    "electronmon": "^2.0.2",
     "eslint": "^7.32.0",
     "eslint-config-standard": "^16.0.3",
     "eslint-plugin-import": "^2.23.4",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^5.1.0",
-    "eslint-plugin-react": "^7.24.0"
+    "eslint-plugin-react": "^7.24.0",
+    "wait-on": "^6.0.0"
   }
 }
