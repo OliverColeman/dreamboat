@@ -11,11 +11,13 @@ This repo is for the simulation and control software, other resources:
 
 ### Day Tripper
 Move in any direction while rotating.
-https://user-images.githubusercontent.com/758108/134748559-ca3e713a-636c-460c-8c01-2cae2c0d2d2a.mp4
+
+https://user-images.githubusercontent.com/758108/134749559-07ade6a9-ca92-4bd3-abc6-9f58cb7e7076.mov
 
 ### Drive My Car
 Drives something like a regular car.
-https://user-images.githubusercontent.com/758108/134748673-8effc385-9acf-4d82-ab20-d586558d1f85.mp4
+
+https://user-images.githubusercontent.com/758108/134749580-d9eab524-bbcb-4e91-acaa-18213465764a.mov
 
 More details to come...
 
