@@ -57,7 +57,8 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         const isTurning = turnRate > movementMagnitudeThreshold
 
         const DRIVE_MY_CAR_TURN_RATE_FACTOR = 0.3
-        const PIVOT_RADIUS_MAX = 1000000
+        // This is the distance of the pivot point when going "straight", in metres.
+        const PIVOT_RADIUS_MAX = 100000000
 
         // Polar coordinates for the pivot point (point to be rotated around).
         const pivotTargetPolar:Polar = {
