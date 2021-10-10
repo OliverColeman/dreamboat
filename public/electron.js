@@ -11,7 +11,11 @@ function createWindow () {
     // Set the path of an additional "preload" script that can be used to
     // communicate between node-land and browser-land.
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: true,
+      nodeIntegrationInWorker: true,
+      contextIsolation: false,
+      enableRemoteModule: true,
+      webSecurity: false,
     },
   })
 
@@ -29,7 +33,15 @@ function createWindow () {
 
   // Automatically open Chrome's DevTools in development mode.
   if (!app.isPackaged) {
-    mainWindow.webContents.openDevTools()
+    // mainWindow.webContents.openDevTools()
+    devtools = new BrowserWindow();
+    mainWindow.webContents.setDevToolsWebContents(devtools.webContents);
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.webContents.once('did-finish-load', function () {
+        var windowBounds = mainWindow.getBounds();
+        devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y);
+        devtools.setSize(windowBounds.width/2, windowBounds.height);
+    });
   }
 }
 
@@ -87,5 +99,20 @@ app.on('web-contents-created', (event, contents) => {
   })
 })
 
+app.allowRendererProcessReuse = false
+
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+// var rpio = require('rpio');
+// const blinkOn = () => {
+//   console.log("H")
+//   rpio.write(16, rpio.HIGH);
+//   setTimeout(blinkOff, 500)
+// }
+// const blinkOff = () => {
+//   rpio.write(16, rpio.LOW);
+//   setTimeout(blinkOn, 500)
+// }
+// rpio.open(16, rpio.OUTPUT, rpio.LOW);
+// blinkOn();
