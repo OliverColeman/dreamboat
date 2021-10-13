@@ -1,5 +1,22 @@
 // Based on https://mmazzarolo.com/blog/2021-08-12-building-an-electron-application-using-create-react-app/
 
+// console.log("====================== 1")
+// const spi = require('spi-device');
+// // const mcpadc = require('mcp-spi-adc');
+// console.log("====================== 2")
+
+// const tempSensor = mcpadc.open(5, {speedHz: 20000}, err => {
+//   if (err) throw err;
+
+//   setInterval(_ => {
+//     tempSensor.read((err, reading) => {
+//       if (err) throw err;
+
+//       console.log(reading.value);
+//     });
+//   }, 1000);
+// });
+
 // Module to control the application lifecycle and the native browser window.
 const { app, BrowserWindow, protocol } = require('electron')
 const path = require('path')
@@ -8,8 +25,10 @@ const url = require('url')
 // Create the native browser window.
 function createWindow () {
   const mainWindow = new BrowserWindow({
+    x: 0,
+    y: 0,
     width: 1024,
-    height: 600,
+    height: 800, //600,
     // Set the path of an additional "preload" script that can be used to
     // communicate between node-land and browser-land.
     webPreferences: {
@@ -34,17 +53,16 @@ function createWindow () {
   mainWindow.loadURL(appURL)
 
   // Automatically open Chrome's DevTools in development mode.
-  if (!app.isPackaged) {
-    // mainWindow.webContents.openDevTools()
-    devtools = new BrowserWindow();
-    mainWindow.webContents.setDevToolsWebContents(devtools.webContents);
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-    mainWindow.webContents.once('did-finish-load', function () {
-        var windowBounds = mainWindow.getBounds();
-        devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y);
-        devtools.setSize(windowBounds.width/2, windowBounds.height);
-    });
-  }
+  // if (!app.isPackaged) {
+  //   devtools = new BrowserWindow();
+  //   mainWindow.webContents.setDevToolsWebContents(devtools.webContents);
+  //   mainWindow.webContents.openDevTools({ mode: 'detach' });
+  //   mainWindow.webContents.once('did-finish-load', function () {
+  //       var windowBounds = mainWindow.getBounds();
+  //       devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y);
+  //       devtools.setSize(windowBounds.width/2, windowBounds.height);
+  //   });
+  // }
 }
 
 // Setup a local proxy to adjust the paths of requested files when loading
@@ -105,16 +123,3 @@ app.allowRendererProcessReuse = false
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
-
-// var rpio = require('rpio');
-// const blinkOn = () => {
-//   console.log("H")
-//   rpio.write(16, rpio.HIGH);
-//   setTimeout(blinkOff, 500)
-// }
-// const blinkOff = () => {
-//   rpio.write(16, rpio.LOW);
-//   setTimeout(blinkOn, 500)
-// }
-// rpio.open(16, rpio.OUTPUT, rpio.LOW);
-// blinkOn();

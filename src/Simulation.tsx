@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { CallbackInterface, useRecoilCallback } from 'recoil'
 import Flatten from '@flatten-js/core'
 
-import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, DriveMode } from './constants'
+import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, DriveMode, control0, control1 } from './constants'
 import { driveModeState, vehicleState, control2DFamily } from './state'
 import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle, deg2Rad } from './util'
 import { Coord, Point, Polar, VehicleState, WheelState } from './types'
@@ -30,8 +30,8 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
   try {
     const mode = await snapshot.getPromise(driveModeState)
     const control2d = [
-      await snapshot.getPromise(control2DFamily('wasd')),
-      await snapshot.getPromise(control2DFamily('mouse')),
+      await snapshot.getPromise(control2DFamily(control0)),
+      await snapshot.getPromise(control2DFamily(control1)),
     ]
 
     // if (_.isEqual(prevControl2d, control2d)) return

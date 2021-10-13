@@ -6,6 +6,8 @@ import { MousePad, KeyPad } from './ControlPad'
 import { Box, Button } from '@material-ui/core'
 import DriveModeSelector from './DriveModeSelector'
 import { rad2Deg } from './util'
+import Joystick from './Joystick'
+import { control0, control1 } from './constants'
 
 export default function Controls () {
   const visualisationDimensions = useRecoilValue(visualisationDimensionsState)
@@ -37,7 +39,8 @@ export default function Controls () {
 
   return (
     <div className="Controls">
-      <KeyPad />
+      {/* <KeyPad /> */}
+      <Joystick />
       <MousePad />
       <DriveModeSelector />
       <Button onClick={reset}>Reset</Button>
@@ -49,8 +52,8 @@ export default function Controls () {
 const Stats = () => {
   const vehicle = useRecoilValue(vehicleState)
   const control2d = [
-    useRecoilValue(control2DFamily('wasd')),
-    useRecoilValue(control2DFamily('mouse')),
+    useRecoilValue(control2DFamily(control0)),
+    useRecoilValue(control2DFamily(control1)),
   ]
 
   const stats = [

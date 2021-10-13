@@ -35,6 +35,9 @@ export const wheelPositions:Array<Vec2> = [
   },
 ]
 
+export const control0 = 'joystick0' // 'wasd'
+export const control1 = 'mouse' // 'mouse'
+
 export const DriveMode = Enum(
   'DRIVE_MY_CAR',
   'DAY_TRIPPER',
