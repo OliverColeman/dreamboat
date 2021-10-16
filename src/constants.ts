@@ -50,3 +50,8 @@ export const driveModeLabels = Object.freeze({
   [DriveMode.DAY_TRIPPER]: 'Day Tripper',
   [DriveMode.TWIST_AND_SHOUT]: 'Twist and Shout',
 })
+
+export const joystickLeftChannelX = 1
+export const joystickLeftChannelY = 0
+export const joystickRightChannelX = 3
+export const joystickRightChannelY = 2

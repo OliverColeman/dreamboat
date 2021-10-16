@@ -1,18 +1,13 @@
-import React, { useCallback, PointerEvent, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { makeStyles } from '@material-ui/core'
-import { CallbackInterface, useRecoilCallback, useRecoilState, useRecoilValue } from 'recoil'
+import { CallbackInterface, useRecoilCallback, useRecoilValue } from 'recoil'
 
 import { control2DFamily } from './state'
-import { constrainRange, getCoordFromPoint, getCoordFromPolar, vecLen } from './util'
+import { constrainRange, getCoordFromPoint, getCoordFromPolar } from './util'
 import { Point } from './types'
-import produce from 'immer'
+import { mcp3008Monitor } from './hardware'
 
-// Require rpio like this because https://stackoverflow.com/questions/43966353/electron-angular-fs-existssync-is-not-a-function
-const rpio = window.require('rpio')
-rpio.init({ gpiomem: false })
-rpio.spiBegin()
-rpio.spiChipSelect(0)
-rpio.spiSetClockDivider(12500)
+const getMCP3008Value = mcp3008Monitor({ channels: [0, 1, 2, 3] })
 
 const size = 241
 const pointSize = 10
@@ -74,26 +69,24 @@ const Joystick = React.memo(function Joystick () {
 })
 export default Joystick
 
-const readMCP3008Channel = (channel: number) => {
-  const txbuf = Buffer.from([0x01, 0x80 + (channel << 4), 0x00])
-  const rxbuf = Buffer.alloc(txbuf.length)
-  rpio.spiTransfer(txbuf, rxbuf, txbuf.length)
-  const rawValue = ((rxbuf[1] & 0x03) << 8) + rxbuf[2]
-  // console.log('rawValue: ', rawValue)
-  return rawValue
-}
-
 const updateJoystickState = ({ snapshot, set }: CallbackInterface) => async () => {
   set(control2DFamily('joystick0'), () => {
-    const y = (readMCP3008Channel(5) / 1023) * -2 + 1
-    return updateCoord(0, y)
+    const y = getMCP3008Value(0) * 2 - 1
+    const x = getMCP3008Value(1) * 2 - 1
+    return updateCoord(x, y)
   })
 }
+
+// const getADCReading = (channel: number) => {
+//   const linearValue = getMCP3008Value(channel) * 2 - 1 // [-1, 1]
+//   return linearValue ** 2 * Math.sign(linearValue)
+// }
 
 const updateCoord = (x:number, y:number) => {
   x = constrainRange(x, -1, 1)
   y = constrainRange(y, -1, 1)
   let { a, r } = getCoordFromPoint({ x, y })
-  r = constrainRange(r, 0, 1)
+  // Non-linear for soft-start
+  r = constrainRange(r ** 2, 0, 1)
   return getCoordFromPolar({ a, r })
 }
