@@ -46,7 +46,7 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         const pivotAngle = control2d[0].a + pi / 2
 
         // How far the vehicle will move this step.
-        const delta = control2d[0].r
+        const delta = mode === DriveMode.DRIVE_MY_CAR ? control2d[0].y : control2d[0].r
         const deltaStep = delta * maxDeltaPerFrame
 
         // How much the vehicle will turn this step.
@@ -92,8 +92,8 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
 
             rotationDelta
               = Math.atan2(deltaStep, pivotTargetPolar.r)
-              * (Math.sign(control2d[1].x) || 1)
-              * -Math.sign(control2d[0].y)
+              * -(Math.sign(control2d[1].x) || 1)
+              // * -Math.sign(control2d[0].y)
             rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
             break
 
