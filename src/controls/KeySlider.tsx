@@ -1,9 +1,9 @@
 import React from 'react'
 import { Slider } from '@material-ui/core'
 import { useRecoilState } from 'recoil'
-
-import { control1DState } from './state'
 import { useHotkeys } from 'react-hotkeys-hook'
+
+import { control1DState } from '../state'
 
 export default React.memo(function KeySlider () {
   const [position, setPosition] = useRecoilState(control1DState)

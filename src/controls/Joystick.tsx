@@ -1,13 +1,18 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { makeStyles } from '@material-ui/core'
 import { CallbackInterface, useRecoilCallback, useRecoilValue } from 'recoil'
 
-import { control2DFamily } from './state'
-import { constrainRange, getCoordFromPoint, getCoordFromPolar } from './util'
-import { Point } from './types'
-import { mcp3008Monitor } from './hardware'
+import { control2DFamily } from '../state'
+import { Point } from '../types'
+import { getADC } from '../hardware/adc'
+import { Control2DProps, update2DControlCoords } from './common'
 
-const getMCP3008Value = mcp3008Monitor({ channels: [0, 1, 2, 3] })
+export type JoystickProps = Control2DProps & {
+  /** ADC channel for X axis. */
+  channelX: number
+  /** ADC channel for Y axis. */
+  channelY: number
+}
 
 const size = 241
 const pointSize = 10
@@ -45,7 +50,31 @@ const useStyles = makeStyles(() => ({
   }),
 }))
 
-const Joystick = React.memo(function Joystick () {
+const Joystick = React.memo(function Joystick (props: JoystickProps) {
+  const { id, channelX, channelY } = props
+
+  const adc = useMemo(
+    () => {
+      const adc = getADC()
+      adc.openChannel(channelX)
+      adc.openChannel(channelY)
+      return adc
+    },
+    [channelX, channelY]
+  )
+
+  const updateJoystickState = useMemo(
+    () =>
+      ({ snapshot, set }: CallbackInterface) => async () => {
+        set(control2DFamily(id), () => {
+          const x = adc.readChannel(channelX) * 2 - 1
+          const y = adc.readChannel(channelY) * 2 - 1
+          return update2DControlCoords(x, y)
+        })
+      },
+    [adc, id, channelX, channelY]
+  )
+
   const updateJoystickCallback = useRecoilCallback(updateJoystickState)
 
   useEffect(() => {
@@ -53,7 +82,7 @@ const Joystick = React.memo(function Joystick () {
     return () => clearInterval(intervalHandle)
   }, [updateJoystickCallback])
 
-  const coords = useRecoilValue(control2DFamily('joystick0'))
+  const coords = useRecoilValue(control2DFamily(id))
 
   const classes = useStyles(coords)
 
@@ -68,25 +97,3 @@ const Joystick = React.memo(function Joystick () {
   )
 })
 export default Joystick
-
-const updateJoystickState = ({ snapshot, set }: CallbackInterface) => async () => {
-  set(control2DFamily('joystick0'), () => {
-    const y = getMCP3008Value(0) * 2 - 1
-    const x = getMCP3008Value(1) * 2 - 1
-    return updateCoord(x, y)
-  })
-}
-
-// const getADCReading = (channel: number) => {
-//   const linearValue = getMCP3008Value(channel) * 2 - 1 // [-1, 1]
-//   return linearValue ** 2 * Math.sign(linearValue)
-// }
-
-const updateCoord = (x:number, y:number) => {
-  x = constrainRange(x, -1, 1)
-  y = constrainRange(y, -1, 1)
-  let { a, r } = getCoordFromPoint({ x, y })
-  // Non-linear for soft-start
-  r = constrainRange(r ** 2, 0, 1)
-  return getCoordFromPolar({ a, r })
-}

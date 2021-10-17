@@ -1,4 +1,6 @@
 import { Enum } from '@martin_hotell/rex-tils'
+import Joystick from './controls/Joystick'
+import { KeyPad, MousePad } from './controls/ControlPad'
 import { Dimensions, Vec2 } from './types'
 
 export const frameRate = 10 // Per second.
@@ -35,9 +37,6 @@ export const wheelPositions:Array<Vec2> = [
   },
 ]
 
-export const control0 = 'joystick0' // 'wasd'
-export const control1 = 'mouse' // 'mouse'
-
 export const DriveMode = Enum(
   'DRIVE_MY_CAR',
   'DAY_TRIPPER',
@@ -51,7 +50,32 @@ export const driveModeLabels = Object.freeze({
   [DriveMode.TWIST_AND_SHOUT]: 'Twist and Shout',
 })
 
-export const joystickLeftChannelX = 1
-export const joystickLeftChannelY = 0
-export const joystickRightChannelX = 3
-export const joystickRightChannelY = 2
+export const Controls2D = Enum(
+  'MOTION_0',
+  'MOTION_1'
+)
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export type Controls2D = Enum<typeof Controls2D>
+
+export const control0 = {
+  component: Joystick,
+  props: {
+    channelX: 1,
+    channelY: 0,
+  },
+}
+// export const control0 = {
+//   component: KeyPad,
+//   props: { },
+// }
+export const control1 = {
+  component: Joystick,
+  props: {
+    channelX: 3,
+    channelY: 2,
+  },
+}
+// export const control1 = {
+//   component: MousePad,
+//   props: { },
+// }

@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect } from 'react'
 import { useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil'
-
-import { control2DFamily, driveModeState, vehicleState, visualisationDimensionsState } from './state'
-import { MousePad, KeyPad } from './ControlPad'
 import { Box, Button } from '@material-ui/core'
+
+import { control2DFamily, driveModeState, vehicleState, visualisationDimensionsState } from '../state'
 import DriveModeSelector from './DriveModeSelector'
-import { rad2Deg } from './util'
-import Joystick from './Joystick'
-import { control0, control1 } from './constants'
+import { rad2Deg } from '../util'
+import { Controls2D, control0, control1 } from '../constants'
 
 export default function Controls () {
   const visualisationDimensions = useRecoilValue(visualisationDimensionsState)
@@ -37,11 +35,14 @@ export default function Controls () {
     resetDriveMode()
   }, [updateVehicleState, resetControlKeyPadState, resetDriveMode])
 
+  const Control0 = control0.component
+  const Control1 = control1.component
+
   return (
     <div className="Controls">
       {/* <KeyPad /> */}
-      <Joystick />
-      <MousePad />
+      <Control0 id={Controls2D.MOTION_0} {...control0.props} />
+      <Control1 id={Controls2D.MOTION_1} {...control1.props} />
       <DriveModeSelector />
       <Button onClick={reset}>Reset</Button>
       <Stats/>
@@ -52,8 +53,8 @@ export default function Controls () {
 const Stats = () => {
   const vehicle = useRecoilValue(vehicleState)
   const control2d = [
-    useRecoilValue(control2DFamily(control0)),
-    useRecoilValue(control2DFamily(control1)),
+    useRecoilValue(control2DFamily(Controls2D.MOTION_0)),
+    useRecoilValue(control2DFamily(Controls2D.MOTION_1)),
   ]
 
   const stats = [

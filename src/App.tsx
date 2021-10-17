@@ -3,7 +3,7 @@ import { RecoilRoot } from 'recoil'
 import { MuiThemeProvider, createMuiTheme, makeStyles } from '@material-ui/core/styles'
 import { CssBaseline } from '@material-ui/core'
 
-import Controls from './Controls'
+import Controls from './controls/Controls'
 import Visualisation from './Visualisation'
 import Simulation from './Simulation'
 
