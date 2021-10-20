@@ -1,14 +1,50 @@
 import React, { useCallback, useEffect } from 'react'
 import { useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil'
-import { Box, Button } from '@material-ui/core'
+import { Box, Button, makeStyles } from '@material-ui/core'
 
-import { control2DFamily, driveModeState, vehicleState, visualisationDimensionsState } from '../state'
+import { control2DFamily, driveModeState, vehicleState, appDimensionsState } from '../state'
 import DriveModeSelector from './DriveModeSelector'
 import { rad2Deg } from '../util'
-import { Controls2D, control0, control1 } from '../constants'
+import { Controls2D, joystick0, joystick1, visualScale, controlType, controlVisualSize } from '../constants'
+import { Dimensions } from '../types'
+import Joystick from './Joystick'
+import { KeyPad, MousePad } from './ControlPad'
+
+type StyleProps = {
+  appDimensions:Dimensions
+}
+
+const useStyles = makeStyles((theme) =>
+  ({
+    leftControl: ({ appDimensions }:StyleProps) => ({
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      zIndex: 10,
+    }),
+    rightControl: ({ appDimensions }:StyleProps) => ({
+      position: 'absolute',
+      top: 0,
+      left: appDimensions.width - controlVisualSize,
+      zIndex: 10,
+    }),
+    driveMode: ({ appDimensions }:StyleProps) => ({
+      position: 'absolute',
+      top: controlVisualSize,
+      left: 0,
+      zIndex: 10,
+    }),
+    stats: ({ appDimensions }:StyleProps) => ({
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      zIndex: 10,
+    }),
+  })
+)
 
 export default function Controls () {
-  const visualisationDimensions = useRecoilValue(visualisationDimensionsState)
+  const appDimensions = useRecoilValue(appDimensionsState)
 
   const resetVehicleState = useResetRecoilState(vehicleState)
   const setVehicleState = useSetRecoilState(vehicleState)
@@ -17,13 +53,13 @@ export default function Controls () {
     reset && resetVehicleState()
     setVehicleState(current => ({
       ...current,
-      centreAbs: { x: visualisationDimensions.width / 2, y: visualisationDimensions.height / 2 },
+      centreAbs: { x: appDimensions.width / visualScale / 2, y: appDimensions.height / visualScale / 2 },
     }))
-  }, [visualisationDimensions, setVehicleState, resetVehicleState])
+  }, [appDimensions, setVehicleState, resetVehicleState])
 
   useEffect(
     () => updateVehicleState(false),
-    [updateVehicleState, visualisationDimensions]
+    [updateVehicleState, appDimensions]
   )
 
   const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'))
@@ -35,17 +71,29 @@ export default function Controls () {
     resetDriveMode()
   }, [updateVehicleState, resetControlKeyPadState, resetDriveMode])
 
-  const Control0 = control0.component
-  const Control1 = control1.component
+  const classes = useStyles({ appDimensions })
 
   return (
     <div className="Controls">
-      {/* <KeyPad /> */}
-      <Control0 id={Controls2D.MOTION_0} {...control0.props} />
-      <Control1 id={Controls2D.MOTION_1} {...control1.props} />
-      <DriveModeSelector />
-      <Button onClick={reset}>Reset</Button>
-      <Stats/>
+      <div className={classes.leftControl}>
+        { controlType === 'joystick'
+          ? <Joystick id={Controls2D.MOTION_0} {...joystick0} />
+          : <KeyPad id={Controls2D.MOTION_0} />
+        }
+      </div>
+      <div className={classes.rightControl}>
+        { controlType === 'joystick'
+          ? <Joystick id={Controls2D.MOTION_1} {...joystick1} />
+          : <MousePad id={Controls2D.MOTION_1} />
+        }
+      </div>
+      <div className={classes.driveMode}>
+        <DriveModeSelector />
+        <Button onClick={reset}>Reset</Button>
+      </div>
+      <div className={classes.stats}>
+        <Stats/>
+      </div>
     </div>
   )
 }
@@ -72,9 +120,9 @@ const Stats = () => {
   ]
 
   return (
-    <Box display="grid" gridTemplateColumns="2fr 1fr 1fr">
+    <Box display="grid" gridTemplateColumns="1fr 1fr 1fr">
       {stats.map((row, ri) => row.slice(0, 3).map((v, ci) =>
-        <Box key={`${ri}-${ci}`}>
+        <Box width={75} key={`${ri}-${ci}`}>
           <span title={'' + row[3]}>{v}</span>
         </Box>
       ))}

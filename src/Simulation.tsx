@@ -3,9 +3,9 @@ import { useEffect } from 'react'
 import { CallbackInterface, useRecoilCallback } from 'recoil'
 import Flatten from '@flatten-js/core'
 
-import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, DriveMode, control0, control1, Controls2D } from './constants'
+import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, DriveMode, Controls2D } from './constants'
 import { driveModeState, vehicleState, control2DFamily } from './state'
-import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle, deg2Rad } from './util'
+import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle } from './util'
 import { Coord, Point, Polar, VehicleState, WheelState } from './types'
 
 const pi = Math.PI

@@ -1,11 +1,13 @@
-import React from 'react'
-import { RecoilRoot } from 'recoil'
+import React, { useEffect } from 'react'
+import { RecoilRoot, useSetRecoilState } from 'recoil'
 import { MuiThemeProvider, createMuiTheme, makeStyles } from '@material-ui/core/styles'
 import { CssBaseline } from '@material-ui/core'
+import { useMeasure } from 'react-use'
 
 import Controls from './controls/Controls'
 import Visualisation from './Visualisation'
 import Simulation from './Simulation'
+import { appDimensionsState } from './state'
 
 const theme = createMuiTheme({
   palette: {
@@ -33,24 +35,39 @@ const useStyles = makeStyles(() => ({
   },
 }))
 
-function App () {
+function AppWrap () {
   const classes = useStyles()
 
   return (
     <RecoilRoot>
       <MuiThemeProvider theme={theme}>
         <CssBaseline>
-          <div
-            className={classes.root}
-          >
-            <Simulation/>
-            <Controls />
-            <Visualisation />
-          </div>
+          <App />
         </CssBaseline>
       </MuiThemeProvider>
     </RecoilRoot>
   )
 }
 
-export default App
+function App () {
+  const classes = useStyles()
+
+  const setAppDimensionsState = useSetRecoilState(appDimensionsState)
+
+  const [ref, { width, height }] = useMeasure()
+
+  useEffect(
+    () => setAppDimensionsState({ width, height }),
+    [setAppDimensionsState, width, height]
+  )
+
+  return (
+    <div className={classes.root} ref={ref}>
+      <Simulation/>
+      <Controls />
+      <Visualisation />
+    </div>
+  )
+}
+
+export default AppWrap

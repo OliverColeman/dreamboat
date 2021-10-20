@@ -1,6 +1,4 @@
 import { Enum } from '@martin_hotell/rex-tils'
-import Joystick from './controls/Joystick'
-import { KeyPad, MousePad } from './controls/ControlPad'
 import { Dimensions, Vec2 } from './types'
 
 export const frameRate = 10 // Per second.
@@ -9,7 +7,7 @@ export const maxRPS = 0.1 // Revolutions/second
 export const movementMagnitudeThreshold = 0.03
 export const maxWheelSteerRPS = 1 // 60 RPM
 
-export const visualScale = 0.1 // px/mm
+export const visualScale = 0.075 // px/mm
 
 export const bedSize:Dimensions = {
   width: 1530,
@@ -50,6 +48,9 @@ export const driveModeLabels = Object.freeze({
   [DriveMode.TWIST_AND_SHOUT]: 'Twist and Shout',
 })
 
+export type ControlType = 'joystick' | 'keypadmouse'
+export const controlType:ControlType = 'joystick'
+
 export const Controls2D = Enum(
   'MOTION_0',
   'MOTION_1'
@@ -57,25 +58,13 @@ export const Controls2D = Enum(
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export type Controls2D = Enum<typeof Controls2D>
 
-export const control0 = {
-  component: Joystick,
-  props: {
-    channelX: 1,
-    channelY: 0,
-  },
+export const joystick0 = {
+  channelX: 0,
+  channelY: 1,
 }
-// export const control0 = {
-//   component: KeyPad,
-//   props: { },
-// }
-export const control1 = {
-  component: Joystick,
-  props: {
-    channelX: 3,
-    channelY: 2,
-  },
+export const joystick1 = {
+  channelX: 2,
+  channelY: 3,
 }
-// export const control1 = {
-//   component: MousePad,
-//   props: { },
-// }
+
+export const controlVisualSize = 101

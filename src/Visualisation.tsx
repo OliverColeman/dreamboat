@@ -1,12 +1,11 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import Konva from 'konva'
 import { Stage, Layer, Rect, Group, Line, Circle, Text } from 'react-konva'
-import { useRecoilValue, useSetRecoilState } from 'recoil'
-import { useMeasure } from 'react-use'
+import { useRecoilValue } from 'recoil'
 
-import { vehicleState, visualisationDimensionsState } from './state'
+import { appDimensionsState, vehicleState } from './state'
 import { makeStyles } from '@material-ui/core'
-import { bedSize, visualScale as scale, visualScale, wheelDiameter, wheelPositions, wheelWidth } from './constants'
+import { bedSize, visualScale as scale, wheelDiameter, wheelPositions, wheelWidth } from './constants'
 import { Coord, WheelState } from './types'
 
 Konva.angleDeg = false
@@ -18,15 +17,8 @@ const useStyles = makeStyles(() => ({
 }))
 
 export default function Visualisation () {
-  const setVisualisationDimensionsState = useSetRecoilState(visualisationDimensionsState)
   const vehicle = useRecoilValue(vehicleState)
-
-  const [ref, { width, height }] = useMeasure()
-
-  useEffect(
-    () => setVisualisationDimensionsState({ width: width / visualScale, height: height / visualScale }),
-    [setVisualisationDimensionsState, width, height]
-  )
+  const { width, height } = useRecoilValue(appDimensionsState)
 
   const classes = useStyles()
 
@@ -44,7 +36,7 @@ export default function Visualisation () {
 
   return (
     // @ts-ignore
-    <div className={classes.root} ref={ref}>
+    <div className={classes.root}>
       <Stage width={width} height={height} scaleX={scale} scaleY={scale}>
         <Layer>
           { gridlines }

@@ -27,8 +27,9 @@ function createWindow () {
   const mainWindow = new BrowserWindow({
     x: 0,
     y: 0,
-    width: 1100, // 1024
-    height: 1000, //600,
+    width: 1024,
+    height: 600,
+    autoHideMenuBar: true,
     // Set the path of an additional "preload" script that can be used to
     // communicate between node-land and browser-land.
     webPreferences: {

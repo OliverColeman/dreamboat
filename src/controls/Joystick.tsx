@@ -6,6 +6,7 @@ import { control2DFamily } from '../state'
 import { Point } from '../types'
 import { getADC } from '../hardware/adc'
 import { Control2DProps, update2DControlCoords } from './common'
+import { controlVisualSize } from '../constants'
 
 export type JoystickProps = Control2DProps & {
   /** ADC channel for X axis. */
@@ -14,35 +15,34 @@ export type JoystickProps = Control2DProps & {
   channelY: number
 }
 
-const size = 241
-const pointSize = 10
+const pointSize = controlVisualSize / 25
 
 const useStyles = makeStyles(() => ({
   root: {
     backgroundColor: 'grey',
-    height: size,
-    width: size,
+    height: controlVisualSize,
+    width: controlVisualSize,
     position: 'relative',
     marginBottom: 8,
   },
   vertAxis: {
     position: 'absolute',
-    left: (size - 1) / 2,
+    left: (controlVisualSize - 1) / 2,
     width: 1,
-    height: size,
+    height: controlVisualSize,
     backgroundColor: '#333',
   },
   horzAxis: {
     position: 'absolute',
-    top: (size - 1) / 2,
-    width: size,
+    top: (controlVisualSize - 1) / 2,
+    width: controlVisualSize,
     height: 1,
     backgroundColor: '#333',
   },
   value: (coords:Point) => ({
     position: 'absolute',
-    top: (coords.y / 2 + 0.5) * size - pointSize / 2,
-    left: (coords.x / 2 + 0.5) * size - pointSize / 2,
+    top: (coords.y / 2 + 0.5) * controlVisualSize - pointSize / 2,
+    left: (coords.x / 2 + 0.5) * controlVisualSize - pointSize / 2,
     width: pointSize,
     height: pointSize,
     borderRadius: pointSize / 2,
@@ -67,8 +67,8 @@ const Joystick = React.memo(function Joystick (props: JoystickProps) {
     () =>
       ({ snapshot, set }: CallbackInterface) => async () => {
         set(control2DFamily(id), () => {
-          const x = adc.readChannel(channelX) * 2 - 1
-          const y = adc.readChannel(channelY) * 2 - 1
+          const x = adc.readChannel(channelX)
+          const y = adc.readChannel(channelY)
           return update2DControlCoords(x, y)
         })
       },

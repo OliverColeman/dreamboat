@@ -3,8 +3,8 @@ import { DriveMode, wheelPositions } from './constants'
 import { Dimensions, Coord, VehicleState } from './types'
 import { getCoordFromPolar } from './util'
 
-export const visualisationDimensionsState = atom<Dimensions>({
-  key: 'visualisationDimensionsState',
+export const appDimensionsState = atom<Dimensions>({
+  key: 'appDimensionsState',
   default: { width: 0, height: 0 },
 })
 
