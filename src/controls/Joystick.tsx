@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { makeStyles, Theme } from '@material-ui/core'
 import { CallbackInterface, useRecoilCallback, useRecoilValue } from 'recoil'
-import ReactDOM from 'react-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faRedo, faDotCircle } from '@fortawesome/free-solid-svg-icons'
 import produce from 'immer'
@@ -173,7 +172,7 @@ const Joystick = React.memo(function Joystick (props: JoystickProps) {
     }, 1000 / CALIBRATION_SAMPLE_HZ)
 
     return () => clearInterval(intervalHandle)
-  }, [calibrationStage, setCalibrateStage, adc, calibration, setCalibration, nextPosition, setCalibrationPosition, calibrationRotateCounts, setCalibrationRotateCounts, calibrationCentreSamples, setCalibrationCentreSample, channelX, channelY, defaultAdcMin, defaultAdcMax, adcResolution])
+  }, [calibrationStage, setCalibrateStage, adc, calibration, setCalibration, nextPosition, setCalibrationPosition, calibrationRotateCounts, setCalibrationRotateCounts, calibrationCentreSamples, setCalibrationCentreSamples, channelX, channelY, defaultAdcMin, defaultAdcMax, adcResolution])
 
   const updateJoystickState = useMemo(
     () =>
