@@ -1,22 +1,5 @@
 // Based on https://mmazzarolo.com/blog/2021-08-12-building-an-electron-application-using-create-react-app/
 
-// console.log("====================== 1")
-// const spi = require('spi-device');
-// // const mcpadc = require('mcp-spi-adc');
-// console.log("====================== 2")
-
-// const tempSensor = mcpadc.open(5, {speedHz: 20000}, err => {
-//   if (err) throw err;
-
-//   setInterval(_ => {
-//     tempSensor.read((err, reading) => {
-//       if (err) throw err;
-
-//       console.log(reading.value);
-//     });
-//   }, 1000);
-// });
-
 // Module to control the application lifecycle and the native browser window.
 const { app, BrowserWindow, protocol } = require('electron')
 const path = require('path')
@@ -30,6 +13,7 @@ function createWindow () {
     width: 1024,
     height: 600,
     autoHideMenuBar: true,
+    fullscreen: true,
     // Set the path of an additional "preload" script that can be used to
     // communicate between node-land and browser-land.
     webPreferences: {
@@ -54,16 +38,16 @@ function createWindow () {
   mainWindow.loadURL(appURL)
 
   // Automatically open Chrome's DevTools in development mode.
-  // if (!app.isPackaged) {
-  //   devtools = new BrowserWindow();
-  //   mainWindow.webContents.setDevToolsWebContents(devtools.webContents);
-  //   mainWindow.webContents.openDevTools({ mode: 'detach' });
-  //   mainWindow.webContents.once('did-finish-load', function () {
-  //       var windowBounds = mainWindow.getBounds();
-  //       devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y);
-  //       devtools.setSize(windowBounds.width/2, windowBounds.height);
-  //   });
-  // }
+  if (!app.isPackaged) {
+    const devtools = new BrowserWindow()
+    mainWindow.webContents.setDevToolsWebContents(devtools.webContents)
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
+    mainWindow.webContents.once('did-finish-load', function () {
+      const windowBounds = mainWindow.getBounds()
+      devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y)
+      devtools.setSize(windowBounds.width / 2, windowBounds.height)
+    })
+  }
 }
 
 // Setup a local proxy to adjust the paths of requested files when loading

@@ -8,10 +8,14 @@ import Controls from './controls/Controls'
 import Visualisation from './Visualisation'
 import Simulation from './Simulation'
 import { appDimensionsState } from './state'
+import { fontSize } from './constants'
 
 const theme = createMuiTheme({
   palette: {
     type: 'dark',
+  },
+  typography: {
+    fontSize,
   },
 })
 

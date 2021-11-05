@@ -4,7 +4,7 @@ import { FormControlLabel, Radio, RadioGroup } from '@material-ui/core'
 import { useHotkeys } from 'react-hotkeys-hook'
 
 import { driveModeState } from '../state'
-import { DriveMode } from '../constants'
+import { DriveMode, fontSize } from '../constants'
 
 const driveModeLabel = (mode:DriveMode) => mode.replaceAll('_', ' ').toLowerCase()
 
@@ -21,6 +21,7 @@ export default function DriveModeSelector () {
       name="drivemode"
       value={driveMode}
       onChange={(e, v) => setDriveMode(v as DriveMode)}
+      style={{ fontSize }}
     >
       { Object.keys(DriveMode).map((value) =>
         <FormControlLabel

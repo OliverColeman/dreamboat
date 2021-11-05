@@ -7,7 +7,8 @@ export const maxRPS = 0.1 // Revolutions/second
 export const movementMagnitudeThreshold = 0.03
 export const maxWheelSteerRPS = 1 // 60 RPM
 
-export const visualScale = 0.075 // px/mm
+export const visualScale = 0.125 // px/mm
+export const fontSize = 36
 
 export const bedSize:Dimensions = {
   width: 1530,
