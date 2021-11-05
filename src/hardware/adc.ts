@@ -23,12 +23,13 @@ export type ADC = {
   openChannel: (channel: number) => void
   closeChannel: (channel: number) => void
   readChannel: (channel: number) => number
+  resolution: () => number
 }
 
 export const ADCDefaultConfig: ADCConfig = Object.freeze({
   chipSelect: 0,
   sampleFrequency: 100,
-  denoiseAlpha: 0.2,
+  denoiseAlpha: 0.5,
 })
 
 function MCP3008ADC (config: ADCConfig) {
@@ -36,15 +37,21 @@ function MCP3008ADC (config: ADCConfig) {
   const oneMinusDenoiseAlpha = 1 - denoiseAlpha
   const channelValue = new Map<number, number>()
 
+  const readChannel = (channel:number) => {
+    const txbuf = Buffer.from([0x01, 0x80 + (channel << 4), 0x00])
+    const rxbuf = Buffer.alloc(txbuf.length)
+    rpio.spiTransfer(txbuf, rxbuf, txbuf.length)
+    const rawValue = ((rxbuf[1] & 0x03) << 8) + rxbuf[2]
+    return rawValue
+  }
+
   setInterval(() => {
     rpio.spiChipSelect(chipSelect)
 
     for (const channel of channelValue.keys()) {
-      const txbuf = Buffer.from([0x01, 0x80 + (channel << 4), 0x00])
-      const rxbuf = Buffer.alloc(txbuf.length)
-      rpio.spiTransfer(txbuf, rxbuf, txbuf.length)
-      const rawValue = ((rxbuf[1] & 0x03) << 8) + rxbuf[2]
-      channelValue.set(channel, channelValue.get(channel) * oneMinusDenoiseAlpha + (rawValue / 1023) * denoiseAlpha)
+      const currentValue = readChannel(channel)
+      const denoisedValue = channelValue.get(channel) * oneMinusDenoiseAlpha + currentValue * denoiseAlpha
+      channelValue.set(channel, denoisedValue)
     }
   }, 1000 / sampleFrequency)
 
@@ -56,7 +63,9 @@ function MCP3008ADC (config: ADCConfig) {
     openChannel: (channel) => {
       checkChannelValid(channel)
       if (!channelValue.has(channel)) {
-        channelValue.set(channel, 0.5)
+        // const baseline = _.mean(_.range(10).map(i => readChannel(channel)))
+        // channelBaseline.set(channel, baseline)
+        channelValue.set(channel, 511)
       }
     },
     closeChannel: (channel) => {
@@ -69,6 +78,7 @@ function MCP3008ADC (config: ADCConfig) {
       if (!channelValue.has(channel)) throw Error(`Channel ${channel} not open.`)
       return channelValue.get(channel)
     },
+    resolution: () => 1023,
   }
 
   return api

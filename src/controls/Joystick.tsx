@@ -1,7 +1,11 @@
-import React, { useEffect, useMemo } from 'react'
-import { makeStyles } from '@material-ui/core'
+import React, { useEffect, useMemo, useState } from 'react'
+import { makeStyles, Theme } from '@material-ui/core'
 import { CallbackInterface, useRecoilCallback, useRecoilValue } from 'recoil'
-
+import ReactDOM from 'react-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faRedo, faDotCircle } from '@fortawesome/free-solid-svg-icons'
+import produce from 'immer'
+import _ from 'lodash'
 import { control2DFamily } from '../state'
 import { Point } from '../types'
 import { getADC } from '../hardware/adc'
@@ -15,15 +19,42 @@ export type JoystickProps = Control2DProps & {
   channelY: number
 }
 
+enum CalibrationStage {
+  ROTATE,
+  CENTER,
+  CALIBRATED,
+}
+enum CalibrationPosition {
+  UP = 0,
+  RIGHT = 1,
+  DOWN = 2,
+  LEFT = 3,
+}
+
+type Calibration = {
+  min: Point
+  max: Point
+  centre: Point
+}
+
+const CALIBRATION_ROTATE_COUNT = 3
+const CALIBRATION_SAMPLE_HZ = 100
+
 const pointSize = controlVisualSize / 25
 
-const useStyles = makeStyles(() => ({
+export type StyleProps = {
+  coords: Point
+}
+
+const useStyles = makeStyles<Theme, StyleProps>(() => ({
   root: {
-    backgroundColor: 'grey',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     height: controlVisualSize,
     width: controlVisualSize,
+    borderRadius: '50%',
     position: 'relative',
     marginBottom: 8,
+    overflow: 'hidden',
   },
   vertAxis: {
     position: 'absolute',
@@ -39,7 +70,7 @@ const useStyles = makeStyles(() => ({
     height: 1,
     backgroundColor: '#333',
   },
-  value: (coords:Point) => ({
+  value: ({ coords }) => ({
     position: 'absolute',
     top: (coords.y / 2 + 0.5) * controlVisualSize - pointSize / 2,
     left: (coords.x / 2 + 0.5) * controlVisualSize - pointSize / 2,
@@ -47,6 +78,18 @@ const useStyles = makeStyles(() => ({
     height: pointSize,
     borderRadius: pointSize / 2,
     backgroundColor: '#00f',
+  }),
+  calibrate: ({
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: controlVisualSize,
+    height: controlVisualSize,
+    color: 'black',
+    zIndex: 20,
   }),
 }))
 
@@ -63,28 +106,100 @@ const Joystick = React.memo(function Joystick (props: JoystickProps) {
     [channelX, channelY]
   )
 
+  const adcResolution = adc.resolution()
+  const defaultAdcMin = adcResolution * 0.2
+  const defaultAdcMax = adcResolution * 0.8
+  const defaultAdcCentre = adcResolution * 0.5
+
+  const [calibrationStage, setCalibrateStage] = useState<CalibrationStage>(CalibrationStage.ROTATE)
+  const [calibration, setCalibration] = useState<Calibration>({
+    min: { x: defaultAdcMin, y: defaultAdcMin },
+    max: { x: defaultAdcMax, y: defaultAdcMax },
+    centre: { x: defaultAdcCentre, y: defaultAdcCentre },
+  })
+  const [calibrationRotateCounts, setCalibrationRotateCounts] = useState(0)
+  const [calibrationPosition, setCalibrationPosition] = useState(CalibrationPosition.LEFT)
+  const nextPosition:CalibrationPosition = (calibrationPosition + 1) % 4
+  const [calibrationCentreSamples, setCalibrationCentreSamples] = useState<Point[]>([])
+
+  useEffect(() => {
+    if (calibrationStage === CalibrationStage.CALIBRATED) return
+    const intervalHandle = setInterval(() => {
+      const x = adc.readChannel(channelX)
+      const y = adc.readChannel(channelY)
+
+      if (calibrationStage === CalibrationStage.ROTATE) {
+        setCalibration(produce(calibration, draft => {
+          if (x < calibration.min.x) draft.min.x = x
+          else if (x > calibration.max.x) draft.max.x = x
+          if (y < calibration.min.y) draft.min.y = y
+          else if (y > calibration.max.y) draft.max.y = y
+        }))
+
+        let currentPosition:CalibrationPosition = null
+        if (x < defaultAdcMin) currentPosition = CalibrationPosition.LEFT
+        else if (x > defaultAdcMax) currentPosition = CalibrationPosition.RIGHT
+        else if (y < defaultAdcMin) currentPosition = CalibrationPosition.UP
+        else if (y > defaultAdcMax) currentPosition = CalibrationPosition.DOWN
+
+        if (currentPosition === nextPosition) {
+          setCalibrationPosition(currentPosition)
+          if (currentPosition === CalibrationPosition.LEFT) {
+            const newCalibrationRotateCounts = calibrationRotateCounts + 1
+            setCalibrationRotateCounts(newCalibrationRotateCounts)
+            if (newCalibrationRotateCounts === CALIBRATION_ROTATE_COUNT) {
+              setCalibrateStage(CalibrationStage.CENTER)
+            }
+          }
+        }
+      } else {
+        if (x > adcResolution * 0.45 && x < adcResolution * 0.55 && y > adcResolution * 0.45 && y < adcResolution * 0.55) {
+          const newCalibrationCentreSamples = [...calibrationCentreSamples, { x, y }]
+          setCalibrationCentreSamples(newCalibrationCentreSamples)
+          // Collect samples for 1 second.
+          if (newCalibrationCentreSamples.length === CALIBRATION_SAMPLE_HZ) {
+            setCalibration(produce(calibration, draft => {
+              draft.centre = {
+                x: _.mean(newCalibrationCentreSamples.map(p => p.x)),
+                y: _.mean(newCalibrationCentreSamples.map(p => p.y)),
+              }
+            }))
+            setCalibrateStage(CalibrationStage.CALIBRATED)
+          }
+        } else {
+          setCalibrationCentreSamples([])
+        }
+      }
+    }, 1000 / CALIBRATION_SAMPLE_HZ)
+
+    return () => clearInterval(intervalHandle)
+  }, [calibrationStage, setCalibrateStage, adc, calibration, setCalibration, nextPosition, setCalibrationPosition, calibrationRotateCounts, setCalibrationRotateCounts, calibrationCentreSamples, setCalibrationCentreSample, channelX, channelY, defaultAdcMin, defaultAdcMax, adcResolution])
+
   const updateJoystickState = useMemo(
     () =>
-      ({ snapshot, set }: CallbackInterface) => async () => {
+      ({ set }: CallbackInterface) => async () => {
         set(control2DFamily(id), () => {
-          const x = adc.readChannel(channelX)
-          const y = adc.readChannel(channelY)
+          const rawX = adc.readChannel(channelX)
+          const rawY = adc.readChannel(channelY)
+          const x = calcJoystickValue(rawX, calibration.min.x, calibration.centre.x, calibration.max.x)
+          const y = calcJoystickValue(rawY, calibration.min.y, calibration.centre.y, calibration.max.y)
           return update2DControlCoords(x, y)
         })
       },
-    [adc, id, channelX, channelY]
+    [id, adc, channelX, channelY, calibration.min.x, calibration.min.y, calibration.centre.x, calibration.centre.y, calibration.max.x, calibration.max.y]
   )
 
   const updateJoystickCallback = useRecoilCallback(updateJoystickState)
-
   useEffect(() => {
-    const intervalHandle = setInterval(updateJoystickCallback, 1000 / 25)
-    return () => clearInterval(intervalHandle)
-  }, [updateJoystickCallback])
+    if (calibrationStage === CalibrationStage.CALIBRATED) {
+      const intervalHandle = setInterval(updateJoystickCallback, 1000 / 25)
+      return () => clearInterval(intervalHandle)
+    }
+  }, [calibration, calibrationStage, updateJoystickCallback])
 
   const coords = useRecoilValue(control2DFamily(id))
 
-  const classes = useStyles(coords)
+  const classes = useStyles({ coords })
 
   return (
     <div
@@ -93,7 +208,26 @@ const Joystick = React.memo(function Joystick (props: JoystickProps) {
       <div className={classes.vertAxis} />
       <div className={classes.horzAxis} />
       <div className={classes.value} />
+
+      { calibrationStage === CalibrationStage.ROTATE && <>
+        <div className={classes.calibrate}>
+          <FontAwesomeIcon icon={faRedo} size='2x' spin />
+        </div>
+        <div className={classes.calibrate}>
+          {CALIBRATION_ROTATE_COUNT - calibrationRotateCounts}
+        </div>
+      </> }
+      { calibrationStage === CalibrationStage.CENTER && <div className={classes.calibrate}>
+        <FontAwesomeIcon icon={faDotCircle} pulse />
+      </div> }
     </div>
   )
 })
 export default Joystick
+
+const calcJoystickValue = (rawValue:number, min:number, centre:number, max:number) => {
+  if (rawValue >= centre) {
+    return (rawValue - centre) / (max - centre)
+  }
+  return (rawValue - centre) / (centre - min)
+}
