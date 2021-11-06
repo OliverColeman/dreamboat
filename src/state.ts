@@ -26,7 +26,7 @@ export const driveModeState = atom<DriveMode>({
 export const vehicleState = atom<VehicleState>({
   key: 'VehicleState',
   default: {
-    centreAbs: { x: 7500, y: 5000 },
+    centreAbs: { x: 0, y: 0 },
     rotationPredicted: 0,
     wheels: wheelPositions.map(() => ({ speed: 0, rotation: 0, flipped: false })),
     wheelsTarget: wheelPositions.map(() => ({ speed: 0, rotation: 0, flipped: false })),

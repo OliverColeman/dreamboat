@@ -1,11 +1,11 @@
 import React from 'react'
 import Konva from 'konva'
-import { Stage, Layer, Rect, Group, Line, Circle, Text } from 'react-konva'
+import { Stage, Layer, Rect, Group, Line, Circle, Text, Arrow } from 'react-konva'
 import { useRecoilValue } from 'recoil'
 
-import { appDimensionsState, vehicleState } from './state'
-import { makeStyles } from '@material-ui/core'
-import { bedSize, visualScale as scale, wheelDiameter, wheelPositions, wheelWidth } from './constants'
+import { appDimensionsState, driveModeState, vehicleState } from './state'
+import { makeStyles, useTheme } from '@material-ui/core'
+import { bedSize, DriveMode, gridSpacing, visualScale as scale, wheelDiameter, wheelPositions, wheelWidth } from './constants'
 import { Coord, WheelState } from './types'
 
 Konva.angleDeg = false
@@ -19,31 +19,58 @@ const useStyles = makeStyles(() => ({
 export default function Visualisation () {
   const vehicle = useRecoilValue(vehicleState)
   const { width, height } = useRecoilValue(appDimensionsState)
+  const driveMode = useRecoilValue(driveModeState)
 
+  const widthScaled = width / scale
+  const heightScaled = height / scale
+
+  const theme = useTheme()
   const classes = useStyles()
 
   const gridlines = []
-  for (let x = 0; x < width / scale; x += 1000) {
+  for (let x = -widthScaled; x < widthScaled; x += gridSpacing) {
     gridlines.push(
-      <Line key={'gv' + x} points={[x, 0, x, height / scale]} stroke="grey" strokeWidth={0.5 / scale} />
+      <Line key={'gv' + x} points={[x, -heightScaled, x, heightScaled]} stroke="grey" strokeWidth={0.5 / scale} />
     )
   }
-  for (let y = 0; y < height / scale; y += 1000) {
+  for (let y = -heightScaled; y < heightScaled; y += gridSpacing) {
     gridlines.push(
-      <Line key={'gh' + y} points={[0, y, width / scale, y]} stroke="grey" strokeWidth={0.5 / scale} />
+      <Line key={'gh' + y} points={[-widthScaled, y, widthScaled, y]} stroke="grey" strokeWidth={0.5 / scale} />
     )
   }
+
+  const forwardRefArrow = <Arrow
+    points={[0, bedSize.height, 0, -bedSize.height]}
+    fill={theme.palette.secondary.main}
+    stroke={theme.palette.secondary.main}
+    strokeWidth={6 / scale}
+    pointerLength={bedSize.height / 6}
+    pointerWidth={bedSize.height / 6}
+  />
 
   return (
-    // @ts-ignore
     <div className={classes.root}>
-      <Stage width={width} height={height} scaleX={scale} scaleY={scale}>
+      <Stage width={width} height={height} scaleX={scale} scaleY={scale} offsetX={-widthScaled / 2} offsetY={-heightScaled / 2}>
         <Layer>
-          { gridlines }
+          <Group
+            rotation={-vehicle.rotationPredicted}
+          >
+            <Group
+              offsetX={vehicle.centreAbs.x % gridSpacing}
+              offsetY={vehicle.centreAbs.y % gridSpacing}
+            >
+              { gridlines }
+
+            </Group>
+
+            { driveMode === DriveMode.DAY_TRIPPER && forwardRefArrow }
+          </Group>
+
+          { driveMode !== DriveMode.DAY_TRIPPER && forwardRefArrow }
 
           <Group
-            {...vehicle.centreAbs}
-            rotation={vehicle.rotationPredicted}
+            // {...vehicle.centreAbs}
+            // rotation={vehicle.rotationPredicted}
           >
             <Circle offsetY={bedSize.height / 2} radius={100} fill="orange" />
             <Rect

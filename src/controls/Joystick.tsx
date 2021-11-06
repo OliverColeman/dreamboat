@@ -37,6 +37,7 @@ type Calibration = {
 }
 
 const CALIBRATION_ROTATE_COUNT = 3
+const CALIBRATION_CENTRE_COUNT = 100
 const CALIBRATION_SAMPLE_HZ = 100
 
 const pointSize = controlVisualSize / 25
@@ -156,7 +157,7 @@ const Joystick = React.memo(function Joystick (props: JoystickProps) {
           const newCalibrationCentreSamples = [...calibrationCentreSamples, { x, y }]
           setCalibrationCentreSamples(newCalibrationCentreSamples)
           // Collect samples for 1 second.
-          if (newCalibrationCentreSamples.length === CALIBRATION_SAMPLE_HZ) {
+          if (newCalibrationCentreSamples.length === CALIBRATION_CENTRE_COUNT) {
             setCalibration(produce(calibration, draft => {
               draft.centre = {
                 x: _.mean(newCalibrationCentreSamples.map(p => p.x)),

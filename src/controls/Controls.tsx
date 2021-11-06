@@ -62,9 +62,10 @@ export default function Controls () {
     reset && resetVehicleState()
     setVehicleState(current => ({
       ...current,
-      centreAbs: { x: appDimensions.width / visualScale / 2, y: appDimensions.height / visualScale / 2 },
+      centreAbs: { x: 0, y: 0 },
+      rotationPredicted: 0,
     }))
-  }, [appDimensions, setVehicleState, resetVehicleState])
+  }, [setVehicleState, resetVehicleState])
 
   useEffect(
     () => updateVehicleState(false),
@@ -72,13 +73,11 @@ export default function Controls () {
   )
 
   const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'))
-  const resetDriveMode = useResetRecoilState(driveModeState)
 
   const reset = useCallback(() => {
     updateVehicleState(true)
     resetControlKeyPadState()
-    resetDriveMode()
-  }, [updateVehicleState, resetControlKeyPadState, resetDriveMode])
+  }, [updateVehicleState, resetControlKeyPadState])
 
   const classes = useStyles({ appDimensions })
 

@@ -40,8 +40,6 @@ const useStyles = makeStyles(() => ({
 }))
 
 function AppWrap () {
-  const classes = useStyles()
-
   return (
     <RecoilRoot>
       <MuiThemeProvider theme={theme}>

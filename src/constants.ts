@@ -8,7 +8,7 @@ export const movementMagnitudeThreshold = 0.03
 export const maxWheelSteerRPS = 1 // 60 RPM
 
 export const visualScale = 0.125 // px/mm
-export const fontSize = 36
+export const gridSpacing = 1000 // mm
 
 export const bedSize:Dimensions = {
   width: 1530,
@@ -69,3 +69,4 @@ export const joystick1 = {
 }
 
 export const controlVisualSize = 101
+export const fontSize = 36
