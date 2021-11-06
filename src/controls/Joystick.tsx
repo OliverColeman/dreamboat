@@ -36,39 +36,42 @@ type Calibration = {
   centre: Point
 }
 
-const CALIBRATION_ROTATE_COUNT = 3
-const CALIBRATION_CENTRE_COUNT = 100
+const CALIBRATION_ROTATE_COUNT = 1
+const CALIBRATION_CENTRE_COUNT = 10
 const CALIBRATION_SAMPLE_HZ = 100
 
-const pointSize = controlVisualSize / 25
+const pointSize = controlVisualSize / 12
 
 export type StyleProps = {
   coords: Point
 }
 
-const useStyles = makeStyles<Theme, StyleProps>(() => ({
+const useStyles = makeStyles<Theme, StyleProps>((theme) => ({
   root: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0)',
     height: controlVisualSize,
     width: controlVisualSize,
+    borderStyle: 'solid',
+    borderWidth: '3px',
+    borderColor: theme.palette.grey[400],
     borderRadius: '50%',
     position: 'relative',
-    marginBottom: 8,
     overflow: 'hidden',
+    boxSizing: 'content-box',
   },
   vertAxis: {
     position: 'absolute',
     left: (controlVisualSize - 1) / 2,
     width: 1,
     height: controlVisualSize,
-    backgroundColor: '#333',
+    backgroundColor: theme.palette.grey[400],
   },
   horzAxis: {
     position: 'absolute',
     top: (controlVisualSize - 1) / 2,
     width: controlVisualSize,
     height: 1,
-    backgroundColor: '#333',
+    backgroundColor: theme.palette.grey[400],
   },
   value: ({ coords }) => ({
     position: 'absolute',
@@ -77,7 +80,7 @@ const useStyles = makeStyles<Theme, StyleProps>(() => ({
     width: pointSize,
     height: pointSize,
     borderRadius: pointSize / 2,
-    backgroundColor: '#00f',
+    backgroundColor: theme.palette.secondary.main,
   }),
   calibrate: ({
     position: 'absolute',
@@ -88,7 +91,7 @@ const useStyles = makeStyles<Theme, StyleProps>(() => ({
     justifyContent: 'center',
     width: controlVisualSize,
     height: controlVisualSize,
-    color: 'black',
+    color: theme.palette.warning.main,
     zIndex: 20,
   }),
 }))

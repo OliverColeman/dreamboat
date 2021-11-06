@@ -16,7 +16,6 @@ export const bedSize:Dimensions = {
 }
 export const wheelCentreMargin = 250
 export const wheelDiameter = 350
-export const wheelWidth = 60
 export const wheelPositions:Array<Vec2> = [
   {
     x: -bedSize.width / 2 + wheelCentreMargin,
@@ -68,5 +67,5 @@ export const joystick1 = {
   channelY: 3,
 }
 
-export const controlVisualSize = 101
+export const controlVisualSize = 121
 export const fontSize = 36

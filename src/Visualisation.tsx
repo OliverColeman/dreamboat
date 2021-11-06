@@ -2,10 +2,11 @@ import React from 'react'
 import Konva from 'konva'
 import { Stage, Layer, Rect, Group, Line, Circle, Text, Arrow } from 'react-konva'
 import { useRecoilValue } from 'recoil'
+import Color from 'color'
 
 import { appDimensionsState, driveModeState, vehicleState } from './state'
 import { makeStyles, useTheme } from '@material-ui/core'
-import { bedSize, DriveMode, gridSpacing, visualScale as scale, wheelDiameter, wheelPositions, wheelWidth } from './constants'
+import { bedSize, DriveMode, gridSpacing, visualScale as scale, wheelDiameter, wheelPositions } from './constants'
 import { Coord, WheelState } from './types'
 
 Konva.angleDeg = false
@@ -27,25 +28,23 @@ export default function Visualisation () {
   const theme = useTheme()
   const classes = useStyles()
 
+  const gridExtent = Math.round(Math.max(widthScaled, heightScaled) / gridSpacing) * gridSpacing
+
   const gridlines = []
-  for (let x = -widthScaled; x < widthScaled; x += gridSpacing) {
+  for (let x = -gridExtent; x <= gridExtent; x += gridSpacing) {
     gridlines.push(
-      <Line key={'gv' + x} points={[x, -heightScaled, x, heightScaled]} stroke="grey" strokeWidth={0.5 / scale} />
+      <Line key={'gv' + x} points={[x, -gridExtent, x, gridExtent]} stroke={theme.palette.success.main} strokeWidth={2 / scale} />
     )
   }
-  for (let y = -heightScaled; y < heightScaled; y += gridSpacing) {
+  for (let y = -gridExtent; y <= gridExtent; y += gridSpacing) {
     gridlines.push(
-      <Line key={'gh' + y} points={[-widthScaled, y, widthScaled, y]} stroke="grey" strokeWidth={0.5 / scale} />
+      <Line key={'gh' + y} points={[-gridExtent, y, gridExtent, y]} stroke={theme.palette.success.main} strokeWidth={2 / scale} />
     )
   }
 
-  const forwardRefArrow = <Arrow
-    points={[0, bedSize.height, 0, -bedSize.height]}
-    fill={theme.palette.secondary.main}
-    stroke={theme.palette.secondary.main}
-    strokeWidth={6 / scale}
-    pointerLength={bedSize.height / 6}
-    pointerWidth={bedSize.height / 6}
+  const forwardRefArrow = <Direction
+    length={bedSize.height * 2}
+    colour={theme.palette.secondary.main}
   />
 
   return (
@@ -72,13 +71,12 @@ export default function Visualisation () {
             // {...vehicle.centreAbs}
             // rotation={vehicle.rotationPredicted}
           >
-            <Circle offsetY={bedSize.height / 2} radius={100} fill="orange" />
             <Rect
               width={bedSize.width}
               height={bedSize.height}
               offsetX={bedSize.width / 2}
               offsetY={bedSize.height / 2}
-              fill="#098"
+              fill={theme.palette.primary.main}
             />
 
             { vehicle.wheels.map((wheel, idx) =>
@@ -88,11 +86,11 @@ export default function Visualisation () {
               >
                 <Wheel
                   state={wheel}
-                  colour="rgba(63, 63, 63, 1)"
+                  colour={theme.palette.warning.main}
                 />
                 <Wheel
                   state={vehicle.wheelsTarget[idx]}
-                  colour="rgba(63, 63, 63, 0.5)"
+                  colour={Color(theme.palette.warning.main).fade(0.5)}
                 />
                 <Text
                   text={'' + idx} fontSize={150} fill="white"
@@ -106,8 +104,8 @@ export default function Visualisation () {
               stroke="green" strokeWidth={0.5 / scale}
             />
 
-            <Pivot pivot={vehicle.pivotTarget} label="T" />
-            <Pivot pivot={vehicle.pivot} label="C" />
+            <Pivot pivot={vehicle.pivotTarget} label="T" colour={Color(theme.palette.warning.main).fade(0.5)} />
+            <Pivot pivot={vehicle.pivot} label="C" colour={theme.palette.warning.main} />
           </Group>
         </Layer>
       </Stage>
@@ -115,18 +113,18 @@ export default function Visualisation () {
   )
 }
 
-type PivotProps = {pivot:Coord, label: string}
-const Pivot:React.FC<PivotProps> = ({ pivot, label }) => (<>
+type PivotProps = {pivot:Coord, label: string, colour: string}
+const Pivot:React.FC<PivotProps> = ({ pivot, label, colour }) => (<>
   <Line
     points={[0, 0, pivot.x, pivot.y]}
-    stroke="blue" strokeWidth={0.5 / scale}
+    stroke={colour} strokeWidth={3 / scale}
   />
   <Circle
     x={pivot.x}
     y={pivot.y}
     radius={100}
-    stroke="blue"
-    strokeWidth={2 / scale}
+    stroke={colour}
+    strokeWidth={3 / scale}
   />
   <Text
     text={label}
@@ -138,16 +136,26 @@ const Pivot:React.FC<PivotProps> = ({ pivot, label }) => (<>
 
 type WheelProps = {state:WheelState, colour: string}
 const Wheel:React.FC<WheelProps> = ({ state, colour }) => (
-  <Group
+  <Direction
     rotation={state.rotation}
-  >
-    <Circle offsetY={wheelDiameter / 2} radius={wheelWidth / 2} fill="orange" />
-    <Rect
-      width={wheelWidth}
-      height={wheelDiameter}
-      offsetX={wheelWidth / 2}
-      offsetY={wheelDiameter / 2}
-      fill={colour}
-    />
-  </Group>
+    length={wheelDiameter}
+    colour={colour}
+  />
+)
+
+type DirectionProps = {
+  colour: string
+  rotation?: number
+  length: number
+}
+const Direction:React.FC<DirectionProps> = ({ rotation, length, colour }) => (
+  <Arrow
+    rotation={rotation ?? 0}
+    points={[0, length / 2, 0, -length / 2]}
+    fill={colour}
+    stroke={colour}
+    strokeWidth={length / 15}
+    pointerLength={length / 7.5}
+    pointerWidth={length / 7.5}
+  />
 )
