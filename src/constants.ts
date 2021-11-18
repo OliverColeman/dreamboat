@@ -38,14 +38,16 @@ export const wheelPositions:Array<Vec2> = [
 export const DriveMode = Enum(
   'DRIVE_MY_CAR',
   'DAY_TRIPPER',
-  'TWIST_AND_SHOUT'
+  'HELTER_SKELTER',
+  'MAGICAL_MYSTERY_TOUR'
 )
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export type DriveMode = Enum<typeof DriveMode>
 export const driveModeLabels = Object.freeze({
   [DriveMode.DRIVE_MY_CAR]: 'Drive My Car',
   [DriveMode.DAY_TRIPPER]: 'Day Tripper',
-  [DriveMode.TWIST_AND_SHOUT]: 'Twist and Shout',
+  [DriveMode.HELTER_SKELTER]: 'Helter Skelter',
+  [DriveMode.MAGICAL_MYSTERY_TOUR]: 'Magical Mystery Tour',
 })
 
 export type ControlType = 'joystick' | 'keypadmouse'

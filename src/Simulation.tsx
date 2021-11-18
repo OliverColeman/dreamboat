@@ -41,7 +41,7 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
       if (control2d.some(c => c.r > movementMagnitudeThreshold)) {
         const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted, pivot: currentPivot } = vehicle
 
-        // For DAY_TRIPPER and TWIST_AND_SHOUT mode,
+        // For DAY_TRIPPER and HELTER_SKELTER mode,
         // base pivot angle is orthogonal to desired driving direction.
         const pivotAngle = control2d[0].a + pi / 2
 
@@ -50,7 +50,7 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         const deltaStep = delta * maxDeltaPerFrame
 
         // How much the vehicle will turn this step.
-        const turnRate = mode === DriveMode.TWIST_AND_SHOUT ? control2d[1].r : Math.abs(control2d[1].x)
+        const turnRate = mode === DriveMode.HELTER_SKELTER ? control2d[1].r : Math.abs(control2d[1].x)
         const turnRateStep = turnRate * maxRotateAnglePerFrame
 
         const isTranslating = delta > movementMagnitudeThreshold
@@ -71,49 +71,51 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         // The amount the vehicle will rotate around the pivot point.
         let rotationDelta = 0 // determined by control method.
 
-        switch (mode) {
+        if (mode === DriveMode.DRIVE_MY_CAR) {
           // Control0 y determines forward/backward speed, control1 x determines turn rate and direction.
-          case DriveMode.DRIVE_MY_CAR:
-            pivotTargetPolar.a = control2d[1].x >= 0 ? 0 : pi
+          pivotTargetPolar.a = control2d[1].x >= 0 ? 0 : pi
 
-            // console.log('current ', Math.round(rad2Deg(currentPivot.a)), Math.round(currentPivot.r))
-            // console.log('t ', Math.round(rad2Deg(pivotTargetPolar.a)), Math.round(pivotTargetPolar.r))
+          // console.log('current ', Math.round(rad2Deg(currentPivot.a)), Math.round(currentPivot.r))
+          // console.log('t ', Math.round(rad2Deg(pivotTargetPolar.a)), Math.round(pivotTargetPolar.r))
 
-            if (currentPivot.a !== pivotTargetPolar.a) {
-              if (currentPivot.r < DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_MAX) {
-                pivotTargetPolar.a = currentPivot.a
-                pivotTargetPolar.r = DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_MAX
-              } else {
-                pivotTargetPolar.r = DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_MAX
-              }
-
-              // console.log('t2', Math.round(rad2Deg(pivotTargetPolar.a)), Math.round(pivotTargetPolar.r))
+          if (currentPivot.a !== pivotTargetPolar.a) {
+            if (currentPivot.r < DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_MAX) {
+              pivotTargetPolar.a = currentPivot.a
+              pivotTargetPolar.r = DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_MAX
+            } else {
+              pivotTargetPolar.r = DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_MAX
             }
 
-            rotationDelta
+            // console.log('t2', Math.round(rad2Deg(pivotTargetPolar.a)), Math.round(pivotTargetPolar.r))
+          }
+
+          rotationDelta
               = Math.atan2(deltaStep, pivotTargetPolar.r)
               * -(Math.sign(control2d[1].x) || 1)
               // * -Math.sign(control2d[0].y)
-            rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
-            break
+          rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
+        }
 
+        if (mode === DriveMode.DAY_TRIPPER) {
           // control0 determines absolute direction, control1 spin rate.
-          case DriveMode.DAY_TRIPPER:
-            pivotTargetPolar.a = pivotAngle - rotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
-            rotationDelta = !isTranslating
-              ? turnRateStep * Math.sign(control2d[1].x)
-              : Math.atan2(deltaStep, pivotTargetPolar.r)
+          pivotTargetPolar.a = pivotAngle - rotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
+          rotationDelta = !isTranslating
+            ? turnRateStep * Math.sign(control2d[1].x)
+            : Math.atan2(deltaStep, pivotTargetPolar.r)
                 * (Math.sign(control2d[1].x) || 1)
-            break
+        }
 
+        if (mode === DriveMode.HELTER_SKELTER) {
           // control0 determines relative direction, control1 spin rate and pivot point.
-          case DriveMode.TWIST_AND_SHOUT:
-            pivotTargetPolar.a = pivotAngle + control2d[1].a
-            rotationDelta = !isTranslating
-              ? turnRateStep * Math.sign(control2d[1].x)
-              : Math.atan2(deltaStep, pivotTargetPolar.r)
-                * (Math.sign(control2d[1].x) || 1)
-            break
+          // Need some de-noising so the pivot angle doesn't fluctuate wildly when the stick isn't being moved.
+          const relativePivotAngle = (control2d[1].r > 0.1 ? control2d[1].a : 0)
+          const relativePivotX = (control2d[1].r > 0.1 ? control2d[1].x : 0)
+
+          pivotTargetPolar.a = pivotAngle + relativePivotAngle
+          rotationDelta = !isTranslating
+            ? turnRateStep * Math.sign(relativePivotX)
+            : Math.atan2(deltaStep, pivotTargetPolar.r)
+                * (Math.sign(relativePivotX) || 1)
         }
 
         // Desired pivot point relative to vehicle rotation and position.

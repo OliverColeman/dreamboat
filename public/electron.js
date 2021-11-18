@@ -38,16 +38,16 @@ function createWindow () {
   mainWindow.loadURL(appURL)
 
   // Automatically open Chrome's DevTools in development mode.
-  if (!app.isPackaged) {
-    const devtools = new BrowserWindow()
-    mainWindow.webContents.setDevToolsWebContents(devtools.webContents)
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
-    mainWindow.webContents.once('did-finish-load', function () {
-      const windowBounds = mainWindow.getBounds()
-      devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y)
-      devtools.setSize(windowBounds.width / 2, windowBounds.height)
-    })
-  }
+  // if (!app.isPackaged) {
+  //   const devtools = new BrowserWindow()
+  //   mainWindow.webContents.setDevToolsWebContents(devtools.webContents)
+  //   mainWindow.webContents.openDevTools({ mode: 'detach' })
+  //   mainWindow.webContents.once('did-finish-load', function () {
+  //     const windowBounds = mainWindow.getBounds()
+  //     devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y)
+  //     devtools.setSize(windowBounds.width / 2, windowBounds.height)
+  //   })
+  // }
 }
 
 // Setup a local proxy to adjust the paths of requested files when loading

@@ -36,8 +36,8 @@ type Calibration = {
   centre: Point
 }
 
-const CALIBRATION_ROTATE_COUNT = 1
-const CALIBRATION_CENTRE_COUNT = 10
+const CALIBRATION_ROTATE_COUNT = 2
+const CALIBRATION_CENTRE_COUNT = 100
 const CALIBRATION_SAMPLE_HZ = 100
 
 const pointSize = controlVisualSize / 12
