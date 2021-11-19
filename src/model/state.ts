@@ -1,7 +1,7 @@
 import { atom, atomFamily } from 'recoil'
-import { DriveMode, wheelPositions } from './constants'
-import { Dimensions, Coord, VehicleState } from './types'
-import { getCoordFromPolar } from './util'
+import { wheelPositions } from '../settings'
+import { DriveMode, Dimensions, Coord, VehicleState } from './types'
+import { getCoordFromPolar } from '../util'
 
 export const appDimensionsState = atom<Dimensions>({
   key: 'appDimensionsState',

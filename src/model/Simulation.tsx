@@ -3,10 +3,10 @@ import { useEffect } from 'react'
 import { CallbackInterface, useRecoilCallback } from 'recoil'
 import Flatten from '@flatten-js/core'
 
-import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, DriveMode, Controls2D } from './constants'
+import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate } from '../settings'
 import { driveModeState, vehicleState, control2DFamily } from './state'
-import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle } from './util'
-import { Coord, Point, Polar, VehicleState, WheelState } from './types'
+import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle } from '../util'
+import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Controls2D } from './types'
 
 const pi = Math.PI
 const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
@@ -24,7 +24,7 @@ function Simulation () {
   return null
 }
 
-let prevControl2d:Coord[]
+// let prevControl2d:Coord[]
 
 const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () => {
   try {
@@ -94,20 +94,16 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
               * -(Math.sign(control2d[1].x) || 1)
               // * -Math.sign(control2d[0].y)
           rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
-        }
-
-        if (mode === DriveMode.DAY_TRIPPER) {
+        } else if (mode === DriveMode.DAY_TRIPPER) {
           // control0 determines absolute direction, control1 spin rate.
           pivotTargetPolar.a = pivotAngle - rotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
           rotationDelta = !isTranslating
             ? turnRateStep * Math.sign(control2d[1].x)
             : Math.atan2(deltaStep, pivotTargetPolar.r)
                 * (Math.sign(control2d[1].x) || 1)
-        }
-
-        if (mode === DriveMode.HELTER_SKELTER) {
+        } else if (mode === DriveMode.HELTER_SKELTER) {
           // control0 determines relative direction, control1 spin rate and pivot point.
-          // Need some de-noising so the pivot angle doesn't fluctuate wildly when the stick isn't being moved.
+          // Need a threshold on the magnitude so the pivot angle doesn't fluctuate wildly when the stick isn't being moved.
           const relativePivotAngle = (control2d[1].r > 0.1 ? control2d[1].a : 0)
           const relativePivotX = (control2d[1].r > 0.1 ? control2d[1].x : 0)
 

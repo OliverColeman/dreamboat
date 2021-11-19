@@ -1,5 +1,5 @@
-import { Controls2D } from '../constants'
-import { constrainRange, getCoordFromPoint, getCoordFromPolar } from '../util'
+import { Controls2D } from '../../model/types'
+import { constrainRange, getCoordFromPoint, getCoordFromPolar } from '../../util'
 
 export type Control2DProps = {
   id: Controls2D

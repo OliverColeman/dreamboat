@@ -3,8 +3,8 @@ import { makeStyles } from '@material-ui/core'
 import { useRecoilState } from 'recoil'
 import { useHotkeys } from 'react-hotkeys-hook'
 
-import { control2DFamily } from '../state'
-import { Point } from '../types'
+import { control2DFamily } from '../../model/state'
+import { Point } from '../../model/types'
 import { Control2DProps, update2DControlCoords } from './common'
 
 const size = 241

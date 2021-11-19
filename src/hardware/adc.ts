@@ -15,7 +15,7 @@ export type ADCConfig = {
   chipSelect: number
   /** Sample frequency in Hertz. */
   sampleFrequency: number
-  /** Denoise exponential moving average factor. */
+  /** Denoise exponential moving average factor. Larger value means less de-noising. */
   denoiseAlpha: number
 }
 
@@ -29,7 +29,7 @@ export type ADC = {
 export const ADCDefaultConfig: ADCConfig = Object.freeze({
   chipSelect: 0,
   sampleFrequency: 100,
-  denoiseAlpha: 0.5,
+  denoiseAlpha: 0.2,
 })
 
 function MCP3008ADC (config: ADCConfig) {
@@ -63,8 +63,6 @@ function MCP3008ADC (config: ADCConfig) {
     openChannel: (channel) => {
       checkChannelValid(channel)
       if (!channelValue.has(channel)) {
-        // const baseline = _.mean(_.range(10).map(i => readChannel(channel)))
-        // channelBaseline.set(channel, baseline)
         channelValue.set(channel, 511)
       }
     },

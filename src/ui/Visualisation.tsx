@@ -4,10 +4,10 @@ import { Stage, Layer, Rect, Group, Line, Circle, Text, Arrow } from 'react-konv
 import { useRecoilValue } from 'recoil'
 import Color from 'color'
 
-import { appDimensionsState, driveModeState, vehicleState } from './state'
+import { appDimensionsState, driveModeState, vehicleState } from '../model/state'
 import { makeStyles, useTheme } from '@material-ui/core'
-import { bedSize, DriveMode, gridSpacing, visualScale as scale, wheelDiameter, wheelPositions } from './constants'
-import { Coord, WheelState } from './types'
+import { bedSize, gridSpacing, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
+import { DriveMode, Coord, WheelState } from '../model/types'
 
 Konva.angleDeg = false
 

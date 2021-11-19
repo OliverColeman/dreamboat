@@ -1,10 +1,10 @@
 import React from 'react'
 import { useRecoilState } from 'recoil'
 import { FormControlLabel, Radio, RadioGroup } from '@material-ui/core'
-// import { useHotkeys } from 'react-hotkeys-hook'
 
-import { driveModeState } from '../state'
-import { DriveMode, driveModeLabels, fontSize } from '../constants'
+import { driveModeState } from '../../model/state'
+import { fontSize } from '../../settings'
+import { DriveMode, driveModeLabels } from '../../model/types'
 
 const driveModeLabel = (mode:DriveMode) => driveModeLabels[mode] // mode.replaceAll('_', ' ').toLowerCase()
 

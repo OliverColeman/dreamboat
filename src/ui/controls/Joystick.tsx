@@ -5,11 +5,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faRedo, faDotCircle } from '@fortawesome/free-solid-svg-icons'
 import produce from 'immer'
 import _ from 'lodash'
-import { control2DFamily } from '../state'
-import { Point } from '../types'
-import { getADC } from '../hardware/adc'
+import { control2DFamily } from '../../model/state'
+import { Point } from '../../model/types'
+import { getADC } from '../../hardware/adc'
 import { Control2DProps, update2DControlCoords } from './common'
-import { controlVisualSize } from '../constants'
+import { controlVisualSize, joystickADCConfig } from '../../settings'
 
 export type JoystickProps = Control2DProps & {
   /** ADC channel for X axis. */
@@ -36,8 +36,8 @@ type Calibration = {
   centre: Point
 }
 
-const CALIBRATION_ROTATE_COUNT = 2
-const CALIBRATION_CENTRE_COUNT = 100
+const CALIBRATION_ROTATE_COUNT = 1 // 3
+const CALIBRATION_CENTRE_COUNT = 20 // 100
 const CALIBRATION_SAMPLE_HZ = 100
 
 const pointSize = controlVisualSize / 12
@@ -101,7 +101,7 @@ const Joystick = React.memo(function Joystick (props: JoystickProps) {
 
   const adc = useMemo(
     () => {
-      const adc = getADC()
+      const adc = getADC(joystickADCConfig)
       adc.openChannel(channelX)
       adc.openChannel(channelY)
       return adc

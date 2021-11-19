@@ -1,5 +1,5 @@
-import { Enum } from '@martin_hotell/rex-tils'
-import { Dimensions, Vec2 } from './types'
+import { ADCConfig } from './hardware/adc'
+import { Dimensions, Vec2, ControlType } from './model/types'
 
 export const frameRate = 10 // Per second.
 export const maxSpeed = 5 * (1000 * 1000) / (60 * 60) // mm/s  (There are (1000*1000)/(60*60) mm/s in 1 km/h)
@@ -35,30 +35,15 @@ export const wheelPositions:Array<Vec2> = [
   },
 ]
 
-export const DriveMode = Enum(
-  'DRIVE_MY_CAR',
-  'DAY_TRIPPER',
-  'HELTER_SKELTER',
-  'MAGICAL_MYSTERY_TOUR'
-)
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export type DriveMode = Enum<typeof DriveMode>
-export const driveModeLabels = Object.freeze({
-  [DriveMode.DRIVE_MY_CAR]: 'Drive My Car',
-  [DriveMode.DAY_TRIPPER]: 'Day Tripper',
-  [DriveMode.HELTER_SKELTER]: 'Helter Skelter',
-  [DriveMode.MAGICAL_MYSTERY_TOUR]: 'Magical Mystery Tour',
-})
+export const controlVisualSize = 121
+export const fontSize = 36
 
-export type ControlType = 'joystick' | 'keypadmouse'
 export const controlType:ControlType = 'joystick'
 
-export const Controls2D = Enum(
-  'MOTION_0',
-  'MOTION_1'
-)
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export type Controls2D = Enum<typeof Controls2D>
+export const joystickADCConfig: Partial<ADCConfig> = Object.freeze({
+  sampleFrequency: 100,
+  denoiseAlpha: 0.2,
+})
 
 export const joystick0 = {
   channelX: 0,
@@ -68,6 +53,3 @@ export const joystick1 = {
   channelX: 2,
   channelY: 3,
 }
-
-export const controlVisualSize = 121
-export const fontSize = 36

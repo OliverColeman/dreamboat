@@ -1,4 +1,4 @@
-import { Polar, Point } from './types'
+import { Polar, Point } from './model/types'
 
 export const deg2Rad = (d:number) => d / 180 * Math.PI
 
