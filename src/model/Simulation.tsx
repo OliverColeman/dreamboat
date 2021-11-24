@@ -114,6 +114,7 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         }
 
         rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
+        pivotTargetPolar.a = normaliseAngle(pivotTargetPolar.a)
 
         // Desired pivot point relative to vehicle rotation and position.
         const pivotTarget = getCoordFromPolar(pivotTargetPolar)
@@ -155,7 +156,7 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         vehicle.pivotTarget = pivotTarget
         vehicle.wheels = achievableWheelState
         vehicle.wheelsTarget = targetWheelState
-        vehicle.rotationPredicted = (vehicle.rotationPredicted + rotationDelta + pi * 2) % (pi * 2)
+        vehicle.rotationPredicted = normaliseAngle((vehicle.rotationPredicted + rotationDelta + pi * 2) % (pi * 2))
         vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationDelta)
 
         // Update absolute state variables, only used for simulation.
