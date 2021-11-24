@@ -29,7 +29,7 @@ export default function Visualisation () {
   const classes = useStyles()
   const colourForward = Color(theme.palette.success.main)
   const colourReverse = Color(theme.palette.warning.main)
-  const colourStopped = Color.rgb(63, 63, 63)
+  const colourStopped = Color.rgb(95, 95, 95)
 
   const gridExtent = Math.round(Math.max(widthScaled, heightScaled) / gridSpacing) * gridSpacing
 
@@ -92,14 +92,14 @@ export default function Visualisation () {
                   fill='black'
                 />
                 { [wheel, vehicle.wheelsTarget[idx]].map((w, i) => {
-                  // Note speed is in mm/s.
                   let colour = colourStopped
+                  // Note speed is in mm/s.
                   if (w.speed > 3) colour = colour.mix(colourForward, w.speed / maxSpeed)
                   else if (w.speed < -3) colour = colour.mix(colourReverse, -w.speed / maxSpeed)
                   if (i === 1) colour = colour.fade(0.5)
                   return <Direction
                     rotation={w.rotation}
-                    length={wheelDiameter}
+                    length={wheelDiameter * 0.95}
                     colour={colour.toString()}
                     key={`wheel-${idx}-${i}`}
                   />
@@ -107,7 +107,7 @@ export default function Visualisation () {
 
                 <Text
                   text={'' + idx} fontSize={150} fill="white"
-                  x={-40} y={-55}
+                  x={-40} y={-60 - wheelDiameter * 0.8 * Math.sign(wheelPositions[idx].y)}
                 />
               </Group>
             )}
@@ -158,8 +158,8 @@ const Direction:React.FC<DirectionProps> = ({ rotation, length, colour }) => (
     points={[0, length / 2, 0, -length / 2]}
     fill={colour}
     stroke={colour}
-    strokeWidth={length / 15}
-    pointerLength={length / 7.5}
-    pointerWidth={length / 7.5}
+    strokeWidth={length / 10}
+    pointerLength={length / 8}
+    pointerWidth={length / 6}
   />
 )
