@@ -48,3 +48,6 @@ export const normaliseAngle = (a: number) => {
   while (a > Math.PI) a -= Math.PI * 2
   return a
 }
+
+/** Factor to convert mm/s to km/hr. */
+export const mmPerS2kmPerHr = (1000 * 1000) / (60 * 60)

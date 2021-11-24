@@ -4,7 +4,7 @@ import { Box, Button, makeStyles } from '@material-ui/core'
 
 import { control2DFamily, vehicleState, appDimensionsState } from '../../model/state'
 import DriveModeSelector from './DriveModeSelector'
-import { rad2Deg } from '../../util'
+import { rad2Deg, mmPerS2kmPerHr } from '../../util'
 import { joystick0, joystick1, controlType, fontSize } from '../../settings'
 import { Controls2D, Dimensions } from '../../model/types'
 import Joystick from './Joystick'
@@ -116,7 +116,7 @@ const Stats = () => {
   ]
 
   const stats = [
-    ['speed', vehicle.speedPredicted, null, 'Predicted speed'],
+    ['speed', (vehicle.speedPredicted / mmPerS2kmPerHr).toFixed(1), null, 'Predicted speed (km/hr)'],
     ['rotation', formatAngle(vehicle.rotationPredicted), null, 'Predicted rotation'],
     ['pivot c', vehicle.pivot.x.toFixed(0), vehicle.pivot.y.toFixed(0), 'Current relative pivot point coordinates'],
     ['pivot p', formatAngle(vehicle.pivot.a), vehicle.pivot.r.toFixed(0), 'Current relative pivot point coordinates polar'],
@@ -125,7 +125,7 @@ const Stats = () => {
       `control${i}`, formatAngle(c.a), formatMagnitude(c.r), `Control ${i} angle and magnitude`,
     ]),
     ...vehicle.wheels.map((w, i) => [
-      `w${i}`, `${formatAngle(w.rotation, 0)} ${w.flipped ? 'F' : ''}`, w.speed.toFixed(1), `Wheel ${i}`,
+      `w${i}`, `${formatAngle(w.rotation, 0)} ${w.flipped ? 'F' : ''}`, (w.speed / mmPerS2kmPerHr).toFixed(1), `Wheel ${i}`,
     ]),
   ]
 

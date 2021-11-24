@@ -5,8 +5,8 @@ import Flatten from '@flatten-js/core'
 
 import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate } from '../settings'
 import { driveModeState, vehicleState, control2DFamily } from './state'
-import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle } from '../util'
-import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Controls2D } from './types'
+import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle, vecLen } from '../util'
+import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Controls2D, Vec2 } from './types'
 
 const pi = Math.PI
 const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
@@ -68,7 +68,7 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
             * (isTurning ? 2500 / turnRate : PIVOT_RADIUS_MAX),
         }
 
-        // The amount the vehicle will rotate around the pivot point.
+        // The amount the vehicle will rotate around the pivot point, in radians.
         let rotationDelta = 0 // determined by control method.
 
         if (mode === DriveMode.DRIVE_MY_CAR) {
@@ -93,7 +93,6 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
               = Math.atan2(deltaStep, pivotTargetPolar.r)
               * -(Math.sign(control2d[1].x) || 1)
               // * -Math.sign(control2d[0].y)
-          rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
         } else if (mode === DriveMode.DAY_TRIPPER) {
           // control0 determines absolute direction, control1 spin rate.
           pivotTargetPolar.a = pivotAngle - rotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
@@ -114,6 +113,8 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
                 * (Math.sign(relativePivotX) || 1)
         }
 
+        rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
+
         // Desired pivot point relative to vehicle rotation and position.
         const pivotTarget = getCoordFromPolar(pivotTargetPolar)
 
@@ -131,11 +132,11 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         }
 
         // Ensure rotation rate does not exceed maximum (something wrong with code above if it does).
-        if (Math.abs(rotationDelta) > maxRotateAnglePerFrame) {
-          console.error('Maximum rotation rate exceeded')
-          vehicle.error = 'Maximum rotation rate exceeded'
-          return
-        }
+        // if (Math.abs(rotationDelta) > maxRotateAnglePerFrame) {
+        //   console.error('Maximum rotation rate exceeded')
+        //   vehicle.error = 'Maximum rotation rate exceeded'
+        //   return
+        // }
 
         // Simulated amount vehicle will move this step.
         const deltaVecSim:Point = {
@@ -155,12 +156,17 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
         vehicle.wheels = achievableWheelState
         vehicle.wheelsTarget = targetWheelState
         vehicle.rotationPredicted = (vehicle.rotationPredicted + rotationDelta + pi * 2) % (pi * 2)
+        vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationDelta)
 
         // Update absolute state variables, only used for simulation.
         vehicle.centreAbs.x += deltaVecSim.x
         vehicle.centreAbs.y += deltaVecSim.y
         vehicle.pivotAbs.x = xAbs + pivotAbs.x
         vehicle.pivotAbs.y = yAbs + pivotAbs.y
+      } else {
+        vehicle.wheels = vehicle.wheels.map(w => ({ ...w, speed: 0 }))
+        vehicle.wheelsTarget = vehicle.wheels.map(w => ({ ...w, speed: 0 }))
+        vehicle.pivotTarget = vehicle.pivot
       }
     }))
   } catch (e) {
@@ -168,7 +174,23 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
   }
 }
 
-function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotationDelta:number) {
+/** Return value for the function that determines new wheel states given a target pivot point and speed. */
+type NewWheelStateInfo = {
+  /** The pivot point that is achievable in the next time step, given wheel turn speed limitations. */
+  pivotAchievable: Coord
+  /** The wheel state that is achievable in the next time step, given wheel turn speed limitations. */
+  achievableWheelState: WheelState[]
+  /** The target wheel state, without considering wheel turn speed limitations. */
+  targetWheelState : WheelState[]
+}
+
+/**
+ * Determine new wheel angles and speeds for the given target pivot point.
+ * @param vehicleState Current vehicle state.
+ * @param targetPivot The target pivot point, relative to current vehicle rotation and position.
+ * @param targetRotationDelta The amount the vehicle is to rotate around the target pivot point, in radians. Used to determine wheel speeds.
+ */
+function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotationDelta:number): NewWheelStateInfo {
   // console.log('==============')
   console.log('maxAllowedAngleDelta', rad2Deg(maxWheelSteerDeltaPerFrame))
 
@@ -265,6 +287,13 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
   }
 }
 
+/**
+ * Calculate the new angle and speed for each wheel given a desired pivot point and rotation delta.
+ * @param wheels Current wheel state.
+ * @param pivot The desired pivot point, relative to current vehicle rotation and position..
+ * @param rotationDelta The amount the vehicle centre is to rotate around the pivot point.
+ * @return New wheel states.
+ */
 const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotationDelta:number): WheelState[] =>
   wheels.map((w, wi) => {
     const wp = wheelPositions[wi]
@@ -286,16 +315,31 @@ const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotation
       // console.log('    fwd', wi, rad2Deg(a))
     }
 
-    // If we're going backwards, turn the wheels 180
-    // TODO should just be reversing wheel speed, but also should be based on which way the wheel is facing given current target direction.
-    // if (rotationDelta < 0) a = (a + pi + pi * 2) % (pi * 2)
-    // if (wi === 0) console.log(a)
-    // a += pi / 2
+    const flipped = reversed ? !w.flipped : w.flipped
+    // const wheelDistanceToPivot = vecLen(wp.x - pivot.x, wp.y - pivot.y)
+    // const wheelDistanceToTravel = 2 * wheelDistanceToPivot * Math.sin(rotationDelta / 2)
+    // const speed = wheelDistanceToTravel * frameRate
+
     return {
       rotation: a,
-      flipped: reversed ? !w.flipped : w.flipped,
-      speed: w.speed,
+      flipped,
+      speed: getSpeedFromAngularDisplacement(pivot, wp, rotationDelta) * (flipped ? -1 : 1),
     }
   })
+
+/**
+ * Calculate speed that a point moves when rotated around a pivot point at a given angle.
+ * Assumes the time base is the `frameRate` from settings.ts
+ * @param pivot The pivot point.
+ * @param point The point being rotated.
+ * @param rotationDelta The amount the point is rotated around the pivot point.
+ * @return The speed, in mm/s.
+ */
+const getSpeedFromAngularDisplacement = (pivot:Coord, point:Vec2, rotationDelta:number) => {
+  const wheelDistanceToPivot = vecLen(point.x - pivot.x, point.y - pivot.y)
+  const wheelDistanceToTravel = 2 * wheelDistanceToPivot * Math.sin(rotationDelta / 2)
+  const speed = wheelDistanceToTravel * frameRate
+  return speed
+}
 
 export default Simulation

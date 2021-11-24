@@ -1,13 +1,18 @@
 import { ADCConfig } from './hardware/adc'
 import { Dimensions, Vec2, ControlType } from './model/types'
+import { mmPerS2kmPerHr } from './util'
 
-export const frameRate = 10 // Per second.
-export const maxSpeed = 5 * (1000 * 1000) / (60 * 60) // mm/s  (There are (1000*1000)/(60*60) mm/s in 1 km/h)
-export const maxRPS = 0.1 // Revolutions/second
-export const movementMagnitudeThreshold = 0.03
+/** Frequency for calculating wheel states, as frames per second. */
+export const frameRate = 20 // Per second.
+/** Maximum vehicle speed in mm / s */
+export const maxSpeed = 5 * mmPerS2kmPerHr // There are (1000*1000)/(60*60) mm/s in 1 km/h
+/** Maximum turn rate of vehicle in revolutions per second. */
+export const maxRPS = 0.05 // Revolutions/second
+/** Maximum turn rate of wheels */
 export const maxWheelSteerRPS = 1 // 60 RPM
-
+/** Scaling of visualisation, in pixels/mm */
 export const visualScale = 0.125 // px/mm
+/** Spacing of visualisation grid lines, in mm */
 export const gridSpacing = 1000 // mm
 
 export const bedSize:Dimensions = {
@@ -53,3 +58,6 @@ export const joystick1 = {
   channelX: 2,
   channelY: 3,
 }
+
+/** Threshold below which joystick inputs are ignored. */
+export const movementMagnitudeThreshold = 0.03

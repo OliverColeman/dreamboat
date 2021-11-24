@@ -86,11 +86,15 @@ export default function Visualisation () {
               >
                 <Wheel
                   state={wheel}
-                  colour={theme.palette.warning.main}
+                  colourForward={theme.palette.success.main}
+                  colourReverse={theme.palette.warning.main}
+                  colourStopped={theme.palette.background.default}
                 />
                 <Wheel
                   state={vehicle.wheelsTarget[idx]}
-                  colour={Color(theme.palette.warning.main).fade(0.5)}
+                  colourForward={Color(theme.palette.success.main).fade(0.5)}
+                  colourReverse={Color(theme.palette.warning.main).fade(0.5)}
+                  colourStopped={Color(theme.palette.background.default).fade(0.5)}
                 />
                 <Text
                   text={'' + idx} fontSize={150} fill="white"
@@ -134,12 +138,13 @@ const Pivot:React.FC<PivotProps> = ({ pivot, label, colour }) => (<>
   />
 </>)
 
-type WheelProps = {state:WheelState, colour: string}
-const Wheel:React.FC<WheelProps> = ({ state, colour }) => (
+type WheelProps = {state:WheelState, colourForward: string, colourReverse: string, colourStopped: string}
+const Wheel:React.FC<WheelProps> = ({ state, colourForward, colourReverse, colourStopped }) => (
   <Direction
     rotation={state.rotation}
     length={wheelDiameter}
-    colour={colour}
+    // Note speed is in mm/s.
+    colour={Math.abs(state.speed) < 3 ? colourStopped : (state.speed >= 0 ? colourForward : colourReverse)}
   />
 )
 
