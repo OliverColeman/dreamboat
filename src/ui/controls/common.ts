@@ -1,4 +1,5 @@
 import { Controls2D } from '../../model/types'
+import { movementMagnitudeThreshold } from '../../settings'
 import { constrainRange, getCoordFromPoint, getCoordFromPolar } from '../../util'
 
 export type Control2DProps = {
@@ -11,5 +12,6 @@ export const update2DControlCoords = (x:number, y:number) => {
   let { a, r } = getCoordFromPoint({ x, y })
   // Non-linear for soft-start
   r = constrainRange(r ** 2, 0, 1)
+  if (r < movementMagnitudeThreshold) a = 0
   return getCoordFromPolar({ a, r })
 }

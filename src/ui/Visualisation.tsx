@@ -6,7 +6,7 @@ import Color from 'color'
 
 import { appDimensionsState, driveModeState, vehicleState } from '../model/state'
 import { makeStyles, useTheme } from '@material-ui/core'
-import { bedSize, gridSpacing, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
+import { bedSize, gridSpacing, maxSpeed, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
 import { DriveMode, Coord, WheelState } from '../model/types'
 
 Konva.angleDeg = false
@@ -27,6 +27,9 @@ export default function Visualisation () {
 
   const theme = useTheme()
   const classes = useStyles()
+  const colourForward = Color(theme.palette.success.main)
+  const colourReverse = Color(theme.palette.warning.main)
+  const colourStopped = Color.rgb(63, 63, 63)
 
   const gridExtent = Math.round(Math.max(widthScaled, heightScaled) / gridSpacing) * gridSpacing
 
@@ -84,18 +87,24 @@ export default function Visualisation () {
                 key={`wheel-${idx}`}
                 {...wheelPositions[idx]}
               >
-                <Wheel
-                  state={wheel}
-                  colourForward={theme.palette.success.main}
-                  colourReverse={theme.palette.warning.main}
-                  colourStopped={theme.palette.background.default}
+                <Circle
+                  radius={wheelDiameter / 2}
+                  fill='black'
                 />
-                <Wheel
-                  state={vehicle.wheelsTarget[idx]}
-                  colourForward={Color(theme.palette.success.main).fade(0.5)}
-                  colourReverse={Color(theme.palette.warning.main).fade(0.5)}
-                  colourStopped={Color(theme.palette.background.default).fade(0.5)}
-                />
+                { [wheel, vehicle.wheelsTarget[idx]].map((w, i) => {
+                  // Note speed is in mm/s.
+                  let colour = colourStopped
+                  if (w.speed > 3) colour = colour.mix(colourForward, w.speed / maxSpeed)
+                  else if (w.speed < -3) colour = colour.mix(colourReverse, -w.speed / maxSpeed)
+                  if (i === 1) colour = colour.fade(0.5)
+                  return <Direction
+                    rotation={w.rotation}
+                    length={wheelDiameter}
+                    colour={colour.toString()}
+                    key={`wheel-${idx}-${i}`}
+                  />
+                }) }
+
                 <Text
                   text={'' + idx} fontSize={150} fill="white"
                   x={-40} y={-55}
@@ -108,7 +117,7 @@ export default function Visualisation () {
               stroke="green" strokeWidth={0.5 / scale}
             />
 
-            <Pivot pivot={vehicle.pivotTarget} label="T" colour={Color(theme.palette.warning.main).fade(0.5)} />
+            <Pivot pivot={vehicle.pivotTarget} label="T" colour={Color(theme.palette.warning.main).fade(0.5).toString()} />
             <Pivot pivot={vehicle.pivot} label="C" colour={theme.palette.warning.main} />
           </Group>
         </Layer>
@@ -137,16 +146,6 @@ const Pivot:React.FC<PivotProps> = ({ pivot, label, colour }) => (<>
     y={pivot.y - 60}
   />
 </>)
-
-type WheelProps = {state:WheelState, colourForward: string, colourReverse: string, colourStopped: string}
-const Wheel:React.FC<WheelProps> = ({ state, colourForward, colourReverse, colourStopped }) => (
-  <Direction
-    rotation={state.rotation}
-    length={wheelDiameter}
-    // Note speed is in mm/s.
-    colour={Math.abs(state.speed) < 3 ? colourStopped : (state.speed >= 0 ? colourForward : colourReverse)}
-  />
-)
 
 type DirectionProps = {
   colour: string
