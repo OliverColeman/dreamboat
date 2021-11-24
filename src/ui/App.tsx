@@ -24,6 +24,7 @@ const useStyles = makeStyles(() => ({
     height: '100vh',
     display: 'flex',
     flexDirection: 'row',
+    userSelect: 'none',
 
     '*': {
       border: '1px solid white',
