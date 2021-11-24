@@ -46,7 +46,7 @@ export default function Visualisation () {
   }
 
   const forwardRefArrow = <Direction
-    length={bedSize.height * 2}
+    length={bedSize.height * 2.2}
     colour={theme.palette.secondary.main}
   />
 
@@ -99,7 +99,7 @@ export default function Visualisation () {
                   if (i === 1) colour = colour.fade(0.5)
                   return <Direction
                     rotation={w.rotation}
-                    length={wheelDiameter * 0.95}
+                    length={wheelDiameter}
                     colour={colour.toString()}
                     key={`wheel-${idx}-${i}`}
                   />
@@ -155,7 +155,7 @@ type DirectionProps = {
 const Direction:React.FC<DirectionProps> = ({ rotation, length, colour }) => (
   <Arrow
     rotation={rotation ?? 0}
-    points={[0, length / 2, 0, -length / 2]}
+    points={[0, length * 0.5, 0, -length * 0.45]}
     fill={colour}
     stroke={colour}
     strokeWidth={length / 10}
