@@ -6,7 +6,7 @@ import { useMeasure } from 'react-use'
 
 import Controls from './controls/Controls'
 import Visualisation from './Visualisation'
-import Simulation from '../model/Simulation'
+// import Simulation from '../model/Simulation'
 import { appDimensionsState } from '../model/state'
 import { fontSize } from '../settings'
 
@@ -66,7 +66,7 @@ function App () {
 
   return (
     <div className={classes.root} ref={ref}>
-      <Simulation/>
+      {/* <Simulation/> */}
       <Visualisation />
       <Controls />
     </div>

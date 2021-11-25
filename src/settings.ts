@@ -1,4 +1,4 @@
-import { ADCConfig } from './hardware/adc'
+// import { ADCConfig } from './hardware/adc'
 import { Dimensions, Vec2, ControlType } from './model/types'
 import { mmPerS2kmPerHr } from './util'
 
@@ -45,10 +45,10 @@ export const fontSize = 36
 
 export const controlType:ControlType = 'joystick'
 
-export const joystickADCConfig: Partial<ADCConfig> = Object.freeze({
-  sampleFrequency: 100,
-  denoiseAlpha: 0.2,
-})
+// export const joystickADCConfig: Partial<ADCConfig> = Object.freeze({
+//   sampleFrequency: 100,
+//   denoiseAlpha: 0.2,
+// })
 
 export const joystick0 = {
   channelX: 0,

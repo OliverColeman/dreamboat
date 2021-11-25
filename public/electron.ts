@@ -5,23 +5,26 @@ const { app, BrowserWindow, protocol } = require('electron')
 const path = require('path')
 const url = require('url')
 
+console.log('ELECTRON!')
+
 // Create the native browser window.
 function createWindow () {
   const mainWindow = new BrowserWindow({
     x: 0,
     y: 0,
-    width: 1024,
-    height: 600,
+    width: 10, // 1024,
+    height: 10, // 600,
     autoHideMenuBar: true,
-    fullscreen: true,
+    // fullscreen: true,
     // Set the path of an additional "preload" script that can be used to
     // communicate between node-land and browser-land.
     webPreferences: {
       nodeIntegration: true,
       nodeIntegrationInWorker: true,
-      contextIsolation: false,
+      // contextIsolation: false,
       enableRemoteModule: true,
       webSecurity: false,
+      preload: 'src/preload.ts',
     },
   })
 
@@ -38,16 +41,15 @@ function createWindow () {
   mainWindow.loadURL(appURL)
 
   // Automatically open Chrome's DevTools in development mode.
-  // if (!app.isPackaged) {
-  //   const devtools = new BrowserWindow()
-  //   mainWindow.webContents.setDevToolsWebContents(devtools.webContents)
-  //   mainWindow.webContents.openDevTools({ mode: 'detach' })
-  //   mainWindow.webContents.once('did-finish-load', function () {
-  //     const windowBounds = mainWindow.getBounds()
-  //     devtools.setPosition(windowBounds.x + windowBounds.width, windowBounds.y)
-  //     devtools.setSize(windowBounds.width / 2, windowBounds.height)
-  //   })
-  // }
+  if (!app.isPackaged) {
+    const devtools = new BrowserWindow()
+    mainWindow.webContents.setDevToolsWebContents(devtools.webContents)
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
+    mainWindow.webContents.once('did-finish-load', function () {
+      devtools.setPosition(500, 0)
+      devtools.setSize(500, 600)
+    })
+  }
 }
 
 // Setup a local proxy to adjust the paths of requested files when loading
