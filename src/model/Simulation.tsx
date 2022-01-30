@@ -2,6 +2,7 @@ import produce from 'immer'
 import { useEffect } from 'react'
 import { CallbackInterface, useRecoilCallback } from 'recoil'
 import Flatten from '@flatten-js/core'
+import _ from 'lodash'
 
 import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate } from '../settings'
 import { driveModeState, vehicleState, control2DFamily } from './state'
@@ -121,6 +122,7 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
 
         const {
           pivotAchievable, // Actual pivot point we're aiming to achieve this time step.
+          rotationDeltaAchievable, // Achievable amount of rotation around pivotAchievable this time step.
           achievableWheelState, // Actual wheel angles we're aiming to achieve this time step.
           targetWheelState, // The current target wheel state (if no restrictions on wheel turn rate).
         } = updateWheels(vehicle, pivotTarget, rotationDelta)
@@ -132,32 +134,19 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
           y: Math.sin(rotationPredicted + pivotAchievable.a) * pivotAchievable.r,
         }
 
-        // Ensure rotation rate does not exceed maximum (something wrong with code above if it does).
-        // if (Math.abs(rotationDelta) > maxRotateAnglePerFrame) {
-        //   console.error('Maximum rotation rate exceeded')
-        //   vehicle.error = 'Maximum rotation rate exceeded'
-        //   return
-        // }
-
         // Simulated amount vehicle will move this step.
         const deltaVecSim:Point = {
-          x: pivotAbs.x - pivotAbs.x * Math.cos(rotationDelta) + pivotAbs.y * Math.sin(rotationDelta),
-          y: pivotAbs.y - pivotAbs.x * Math.sin(rotationDelta) - pivotAbs.y * Math.cos(rotationDelta),
+          x: pivotAbs.x - pivotAbs.x * Math.cos(rotationDeltaAchievable) + pivotAbs.y * Math.sin(rotationDeltaAchievable),
+          y: pivotAbs.y - pivotAbs.x * Math.sin(rotationDeltaAchievable) - pivotAbs.y * Math.cos(rotationDeltaAchievable),
         }
-        // Ensure speed does not exceed maximum (something wrong with code above if it does).
-        // if (vecLen(deltaVecSim.x, deltaVecSim.y) > maxDeltaPerFrame) {
-        //   console.error('Maximum speed exceeded')
-        //   vehicle.error = 'Maximum speed exceeded'
-        //   return
-        // }
 
         // Update relative state variables.
         vehicle.pivot = pivotAchievable
         vehicle.pivotTarget = pivotTarget
         vehicle.wheels = achievableWheelState
         vehicle.wheelsTarget = targetWheelState
-        vehicle.rotationPredicted = normaliseAngle((vehicle.rotationPredicted + rotationDelta + pi * 2) % (pi * 2))
-        vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationDelta)
+        vehicle.rotationPredicted = normaliseAngle((vehicle.rotationPredicted + rotationDeltaAchievable + pi * 2) % (pi * 2))
+        vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationDeltaAchievable)
 
         // Update absolute state variables, only used for simulation.
         vehicle.centreAbs.x += deltaVecSim.x
@@ -179,6 +168,8 @@ const updateVehicleState = ({ snapshot, set }: CallbackInterface) => async () =>
 type NewWheelStateInfo = {
   /** The pivot point that is achievable in the next time step, given wheel turn speed limitations. */
   pivotAchievable: Coord
+  /** The amount of rotation that is achievable in the next time (limited by maximum wheel speed). */
+  rotationDeltaAchievable
   /** The wheel state that is achievable in the next time step, given wheel turn speed limitations. */
   achievableWheelState: WheelState[]
   /** The target wheel state, without considering wheel turn speed limitations. */
@@ -230,8 +221,22 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
     if (Math.abs(wheelAngleDeltas[indexOfWheelTurningTheMost]) <= maxWheelSteerDeltaPerFrame * 1.01) {
       // console.log('    found valid solution')
 
+      let rotationDeltaAchievable = targetRotationDelta
+
+      // If any wheels are set to go faster than possible (can happen for outside wheels when turning),
+      // scale speed back to achievable amount.
+      const maxWheelSpeed = _.max(achievableWheelState.map(ws => Math.abs(ws.speed)))
+      if (maxWheelSpeed > maxSpeed) {
+        const scaleFactor = maxSpeed / maxWheelSpeed
+        for (const ws of achievableWheelState) {
+          ws.speed *= scaleFactor
+        }
+        rotationDeltaAchievable = targetRotationDelta * scaleFactor
+      }
+
       return {
         pivotAchievable,
+        rotationDeltaAchievable,
         achievableWheelState,
         targetWheelState,
       }
