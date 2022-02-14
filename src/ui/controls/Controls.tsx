@@ -5,42 +5,37 @@ import { Button, makeStyles } from '@material-ui/core'
 import { control2DFamily, vehicleState, appDimensionsState } from '../../model/state'
 import DriveModeSelector from './DriveModeSelector'
 import { joystick0, joystick1, controlType, fontSize } from '../../settings'
-import { Controls2D, Dimensions } from '../../model/types'
+import { Controls2D, AppDimensionStyleProps } from '../../model/types'
 import Joystick from './Joystick'
 import { KeyPad, MousePad } from './ControlPad'
-import Stats from './Stats'
-
-type StyleProps = {
-  appDimensions:Dimensions
-}
 
 const useStyles = makeStyles((theme) =>
   ({
-    leftControl: ({ appDimensions }:StyleProps) => ({
+    leftControl: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
       top: 0,
       left: 0,
       zIndex: 10,
     }),
-    rightControl: ({ appDimensions }:StyleProps) => ({
+    rightControl: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
       top: 0,
       right: 0,
       zIndex: 10,
     }),
-    driveMode: ({ appDimensions }:StyleProps) => ({
+    driveMode: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
       top: appDimensions.height / 2 - fontSize * 3.3,
       left: 0,
       zIndex: 10,
     }),
-    reset: ({ appDimensions }:StyleProps) => ({
+    reset: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
       bottom: 0,
       left: 0,
       zIndex: 10,
     }),
-    stats: ({ appDimensions }:StyleProps) => ({
+    stats: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
       bottom: 0,
       right: 0,
@@ -53,8 +48,6 @@ const useStyles = makeStyles((theme) =>
 )
 
 export default function Controls () {
-  const appDimensions = useRecoilValue(appDimensionsState)
-
   const resetVehicleState = useResetRecoilState(vehicleState)
   const setVehicleState = useSetRecoilState(vehicleState)
 
@@ -69,7 +62,7 @@ export default function Controls () {
 
   useEffect(
     () => updateVehicleState(false),
-    [updateVehicleState, appDimensions]
+    [updateVehicleState]
   )
 
   const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'))
@@ -79,6 +72,7 @@ export default function Controls () {
     resetControlKeyPadState()
   }, [updateVehicleState, resetControlKeyPadState])
 
+  const appDimensions = useRecoilValue(appDimensionsState)
   const classes = useStyles({ appDimensions })
 
   return (
@@ -100,9 +94,6 @@ export default function Controls () {
       </div>
       <div className={classes.reset}>
         <Button onClick={reset}>Reset</Button>
-      </div>
-      <div className={classes.stats}>
-        <Stats/>
       </div>
     </div>
   )

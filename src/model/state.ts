@@ -1,7 +1,8 @@
 import { atom, atomFamily } from 'recoil'
 import { wheelPositions } from '../settings'
-import { DriveMode, Dimensions, Coord, VehicleState } from './types'
+import { DriveMode, Dimensions, Coord, VehicleState, MotorControllerState } from './types'
 import { getCoordFromPolar } from '../util'
+import _ from 'lodash'
 
 export const appDimensionsState = atom<Dimensions>({
   key: 'appDimensionsState',
@@ -36,4 +37,9 @@ export const vehicleState = atom<VehicleState>({
     speedPredicted: 0,
     error: null,
   },
+})
+
+export const motorControllerState = atom<MotorControllerState[]>({
+  key: 'MotorControllerState',
+  default: [],
 })

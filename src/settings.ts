@@ -61,3 +61,10 @@ export const joystick1 = {
 
 /** Threshold below which joystick inputs are ignored. */
 export const movementMagnitudeThreshold = 0.03
+
+/** The ports of the motor controllers. */
+export const driveMotorSerialNumbers = ['1600DB368EC8', '160091E42CEB']
+/** How many motors there are per motor controller. */
+export const motorsPerController = 2
+/** Time between updating the status and stats of the motor controllers, in ms. */
+export const motorControllerStateUpdateInterval = 1000 / 10

@@ -6,9 +6,15 @@ import { useMeasure } from 'react-use'
 
 import Controls from './controls/Controls'
 import Visualisation from './Visualisation'
-import Simulation from '../model/Simulation'
+import UpdateLoop from '../model/UpdateLoop'
 import { appDimensionsState } from '../model/state'
 import { fontSize } from '../settings'
+import UpdateMotors from '../model/UpdateMotors'
+import Stats from './indicators/Stats'
+import Indicators from './indicators/Indicators'
+import Log from './indicators/Log'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faTimesCircle } from '@fortawesome/free-solid-svg-icons'
 
 const theme = createMuiTheme({
   palette: {
@@ -22,21 +28,17 @@ const theme = createMuiTheme({
 const useStyles = makeStyles(() => ({
   root: {
     height: '100vh',
+    width: '100vw',
     display: 'flex',
-    flexDirection: 'row',
     userSelect: 'none',
+    overflow: 'hidden',
+  },
 
-    '*': {
-      border: '1px solid white',
-      padding: '10px',
-      borderRadius: '5px',
-      boxSizing: 'border-box',
-
-      margin: '10px 0 10px 10px',
-      '&:last-child': {
-        marginRight: '10px',
-      },
-    },
+  closeButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    zIndex: 1000,
   },
 }))
 
@@ -66,9 +68,17 @@ function App () {
 
   return (
     <div className={classes.root} ref={ref}>
-      <Simulation/>
+      <UpdateLoop />
+      <UpdateMotors />
       <Visualisation />
       <Controls />
+      <Indicators />
+      <Log />
+      <FontAwesomeIcon
+        icon={faTimesCircle} size='1x'
+        className={classes.closeButton}
+        onClick={window.close}
+      />
     </div>
   )
 }

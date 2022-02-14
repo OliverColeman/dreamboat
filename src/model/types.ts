@@ -16,12 +16,33 @@ export type Coord = Point & Polar
 
 /** Current state of a wheel */
 export type WheelState = {
-  /** Desired speed */
+  /** Desired speed in mm/s */
   speed: number
   /** Desired rotation relative to vehicle */
   rotation: number
   /** Is the wheel direction currently flipped 180 degrees. */
   flipped: boolean
+}
+
+/** Information about a drive motor and motor-specific controller stats. */
+export type MotorState = {
+  /** Drive rate, in range [-1, 1]. */
+  rate: number
+  /** Current being drawn by motor in Amps. */
+  current: number
+  /** Temperature of motor-specific output transistors in deg. C. */
+  temperature: number
+}
+
+/** Information about the drive motors and controllers. */
+export type MotorControllerState = {
+  /** Flag indicating successful connection to motor controller. */
+  connected: boolean
+  /** Battery voltage reported by motor controller. */
+  batteryVoltage: number
+  /** State of the motors for this controller. */
+  motors: MotorState[]
+  error: string
 }
 
 /** Current state of vehicle */
@@ -69,3 +90,7 @@ export const Controls2D = Enum(
 )
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export type Controls2D = Enum<typeof Controls2D>
+
+export type AppDimensionStyleProps = {
+  appDimensions:Dimensions
+}

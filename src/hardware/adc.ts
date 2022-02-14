@@ -1,4 +1,4 @@
-// Require rpio like this because https://stackoverflow.com/questions/43966353/electron-angular-fs-existssync-is-not-a-function
+// Require rpio like this because https://stackoverflow.com/a/43971252/1133481
 const rpio = window.require('rpio')
 
 rpio.init({

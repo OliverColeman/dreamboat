@@ -1,9 +1,23 @@
-import { Box } from '@material-ui/core'
+import { Box, makeStyles } from '@material-ui/core'
 import { useRecoilValue } from 'recoil'
 
-import { vehicleState, control2DFamily } from '../../model/state'
-import { Controls2D } from '../../model/types'
+import { vehicleState, control2DFamily, appDimensionsState } from '../../model/state'
+import { AppDimensionStyleProps, Controls2D } from '../../model/types'
 import { mmPerS2kmPerHr, rad2Deg } from '../../util'
+
+const useStyles = makeStyles((theme) =>
+  ({
+    stats: ({ appDimensions }:AppDimensionStyleProps) => ({
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      zIndex: 10,
+      fontSize: '16px',
+      width: 300,
+      overflowX: 'hidden',
+    }),
+  })
+)
 
 const Stats = () => {
   const vehicle = useRecoilValue(vehicleState)
@@ -26,14 +40,19 @@ const Stats = () => {
     ]),
   ]
 
+  const appDimensions = useRecoilValue(appDimensionsState)
+  const classes = useStyles({ appDimensions })
+
   return (
-    <Box display="grid" gridTemplateColumns="1fr 1fr 1fr">
-      {stats.map((row, ri) => row.slice(0, 3).map((v, ci) =>
-        <Box width={75} key={`${ri}-${ci}`}>
-          <span title={'' + row[3]}>{v}</span>
-        </Box>
-      ))}
-    </Box>
+    <div className={classes.stats}>
+      <Box display="grid" gridTemplateColumns="1fr 1fr 1fr">
+        {stats.map((row, ri) => row.slice(0, 3).map((v, ci) =>
+          <Box width={75} key={`${ri}-${ci}`}>
+            <span title={'' + row[3]}>{v}</span>
+          </Box>
+        ))}
+      </Box>
+    </div>
   )
 }
 
