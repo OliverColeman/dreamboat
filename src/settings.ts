@@ -68,3 +68,5 @@ export const driveMotorSerialNumbers = ['1600DB368EC8', '160091E42CEB']
 export const motorsPerController = 2
 /** Time between updating the status and stats of the motor controllers, in ms. */
 export const motorControllerStateUpdateInterval = 1000 / 10
+/** Maximum output voltage of sabertooth motor controller as proportion of input voltage. */
+export const motorControllerMaxMotorOutputRate = 0.94

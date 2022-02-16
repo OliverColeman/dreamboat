@@ -3,7 +3,7 @@ import _ from 'lodash'
 import { SabertoothUSB, SingleChannel, listSabertoothDevices } from 'sabertooth-usb'
 
 import { MotorControllerState, VehicleState } from '../model/types'
-import { driveMotorSerialNumbers, maxSpeed, motorControllerStateUpdateInterval, motorsPerController } from '../settings'
+import { driveMotorSerialNumbers, maxSpeed, motorControllerStateUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate } from '../settings'
 
 const motorController:Array<SabertoothUSB> = [null, null]
 
@@ -11,7 +11,10 @@ listSabertoothDevices().then(devices =>
   driveMotorSerialNumbers.forEach((serialNumber, mcIndex) => {
     motorController[mcIndex] = new SabertoothUSB(
       devices.find(d => d.serialNumber === serialNumber).path,
-      { baudRate: 115200 }
+      {
+        baudRate: 115200,
+        maxMotorOutputRate: motorControllerMaxMotorOutputRate,
+      }
     )
   })
 )
@@ -64,7 +67,8 @@ const updateMotorControllerState = async () => {
         try {
           mcs.batteryVoltage = await mc.getBatteryVoltage()
           for (let mi = 0; mi < motorsPerController; mi++) {
-            mcs.motors[mi].rate = await mc.getMotorDriverOutputRate(mi + 1 as SingleChannel)
+            // Divide rate by motorControllerMaxMotorOutputRate so we get range [0, 1].
+            mcs.motors[mi].rate = (await mc.getMotorDriverOutputRate(mi + 1 as SingleChannel)) / motorControllerMaxMotorOutputRate
             mcs.motors[mi].current = await mc.getMotorCurrent(mi + 1 as SingleChannel)
             mcs.motors[mi].temperature = await mc.getMotorDriverOutputTemperature(mi + 1 as SingleChannel)
           }
