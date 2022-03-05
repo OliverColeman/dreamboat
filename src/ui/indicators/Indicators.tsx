@@ -2,7 +2,7 @@ import { Theme, makeStyles, useTheme } from '@material-ui/core'
 import { useRecoilValue } from 'recoil'
 import _ from 'lodash'
 
-import { motorControllerState, vehicleState } from '../../model/state'
+import { telemetryState, vehicleState } from '../../model/state'
 import { fontSize } from '../../settings'
 import { mmPerS2kmPerHr } from '../../util'
 
@@ -37,7 +37,7 @@ const useStyles = makeStyles<Theme>((theme) =>
 
 const Indicators = () => {
   const vehicle = useRecoilValue(vehicleState)
-  const motors = useRecoilValue(motorControllerState)
+  const telemetry = useRecoilValue(telemetryState)
 
   const theme = useTheme()
   const classes = useStyles(theme)
@@ -48,7 +48,7 @@ const Indicators = () => {
     </div>
 
     <strong>Motors</strong>
-    {motors.map((mc, mci) =>
+    {telemetry.motorControllers.map((mc, mci) =>
       <div
         key={`mc${mci}`}
         className={mc.connected && !mc.error ? classes.connected : classes.disconnected}
@@ -61,7 +61,7 @@ const Indicators = () => {
                   {Math.round(motor.rate * 100)}%
                 </div>
                 <div className={classes.field}>
-                  {motor.current}A
+                  {motor.current.toFixed(1)}A
                 </div>
                 <div className={classes.field}>
                   {motor.temperature}&deg;C
@@ -72,7 +72,9 @@ const Indicators = () => {
       </div>
     )}
 
-    <div>Battery: {motors?.[0]?.batteryVoltage}</div>
+    <div>Battery: {telemetry.motorControllers?.[0]?.batteryVoltage}v</div>
+
+    <div>CPU temp: {Math.round(telemetry.controller.cpuTemperature)}&deg;C</div>
   </div>
 }
 

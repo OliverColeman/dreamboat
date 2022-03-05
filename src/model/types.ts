@@ -45,6 +45,15 @@ export type MotorControllerState = {
   error: string
 }
 
+export type ControllerState = {
+  cpuTemperature: number
+}
+
+export type Telemetry = {
+  motorControllers: MotorControllerState[]
+  controller: ControllerState
+}
+
 /** Current state of vehicle */
 export type VehicleState = {
   /** Predicted position of vehicle in absolute coordinates */

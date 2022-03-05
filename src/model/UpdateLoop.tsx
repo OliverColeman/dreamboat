@@ -1,31 +1,30 @@
 import { useEffect } from 'react'
 import { CallbackInterface, useRecoilCallback } from 'recoil'
-import _ from 'lodash'
 
 import { frameRate } from '../settings'
-import { driveModeState, vehicleState, control2DFamily, motorControllerState } from './state'
+import { driveModeState, vehicleState, control2DFamily, telemetryState } from './state'
 import { Controls2D } from './types'
 import { updateVehicleState } from './reducer'
-import { getMotorControllerState } from '../hardware/motor'
+import { getTelemetry } from '../hardware/telemetry'
 
 function UpdateLoop () {
   const updateVehicleStateCallback = useRecoilCallback(updateVehicleStateWithCurrentControls)
-  const updateMotorControllerStateCallback = useRecoilCallback(updateMotorControllerState)
+  const updateTelemetryStateCallback = useRecoilCallback(updateTelemetryState)
 
   useEffect(() => {
     const intervalHandle = setInterval(() => {
-      updateMotorControllerStateCallback()
+      updateTelemetryStateCallback()
       updateVehicleStateCallback()
     }, 1000 / frameRate)
     return () => clearInterval(intervalHandle)
-  }, [updateMotorControllerStateCallback, updateVehicleStateCallback])
+  }, [updateTelemetryStateCallback, updateVehicleStateCallback])
 
   return null
 }
 
-const updateMotorControllerState = ({ set }: CallbackInterface) => async () => {
+const updateTelemetryState = ({ set }: CallbackInterface) => async () => {
   try {
-    set(motorControllerState, getMotorControllerState())
+    set(telemetryState, getTelemetry())
   } catch (e) {
     console.log(e)
   }

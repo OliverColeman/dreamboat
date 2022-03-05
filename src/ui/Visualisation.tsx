@@ -7,7 +7,7 @@ import Color from 'color'
 import { appDimensionsState, driveModeState, vehicleState } from '../model/state'
 import { makeStyles, useTheme } from '@material-ui/core'
 import { bedSize, gridSpacing, maxSpeed, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
-import { DriveMode, Coord, WheelState } from '../model/types'
+import { DriveMode, Coord } from '../model/types'
 
 Konva.angleDeg = false
 
