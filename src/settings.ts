@@ -70,3 +70,5 @@ export const motorsPerController = 2
 export const motorControllerStateUpdateInterval = 1000 / 10
 /** Maximum output voltage of sabertooth motor controller as proportion of input voltage. */
 export const motorControllerMaxMotorOutputRate = 0.94
+/** Maximum output current per channel of sabertooth motor controllers. */
+export const motorControllerMaxCurrentPerMotor = 26

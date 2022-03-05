@@ -3,7 +3,7 @@ import _ from 'lodash'
 import { SabertoothUSB, SingleChannel, listSabertoothDevices } from 'sabertooth-usb'
 
 import { MotorControllerState, VehicleState } from '../model/types'
-import { driveMotorSerialNumbers, maxSpeed, motorControllerStateUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate } from '../settings'
+import { driveMotorSerialNumbers, maxSpeed, motorControllerStateUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor } from '../settings'
 
 const motorController:Array<SabertoothUSB> = [null, null]
 
@@ -16,6 +16,8 @@ listSabertoothDevices().then(devices =>
         maxMotorOutputRate: motorControllerMaxMotorOutputRate,
       }
     )
+
+    motorController[mcIndex].setCurrentLimit('*', motorControllerMaxCurrentPerMotor)
   })
 )
 
@@ -35,16 +37,23 @@ export const updateWheels = (vehicle:VehicleState) => {
   if (motorController[0] !== null) {
     const { wheels } = vehicle
 
-    const allGood = mcGood(motorControllerState[0]) && mcGood(motorControllerState[1])
+    let allGood = mcGood(motorControllerState[0]) && mcGood(motorControllerState[1])
     wheels.forEach((wheel, wheelIndex) => {
       const mcIndex = Math.floor(wheelIndex / motorsPerController)
       const motorChannel = wheelIndex % motorsPerController + 1 as SingleChannel
 
-      if (!allGood) {
-        // Stop motors if any motor controller disconnected or has error.
-        motorController[mcIndex].setMotor(motorChannel, 0)
-      } else {
-        motorController[mcIndex].setMotor(motorChannel, wheel.speed / maxSpeed)
+      try {
+        if (!allGood) {
+          // Stop motors if any motor controller disconnected or has error.
+          motorController[mcIndex].setMotor(motorChannel, 0)
+        } else {
+          // Allows for numerical imprecision, eg sometimes a rate of 1.000000000002 can occur as a result of the division.
+          const rate = Math.min(1, Math.max(-1, wheel.speed / maxSpeed))
+          motorController[mcIndex].setMotor(motorChannel, rate)
+        }
+      } catch (err) {
+        allGood = false
+        motorControllerState[mcIndex].error = '' + err
       }
     })
   }
