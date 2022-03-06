@@ -72,7 +72,7 @@ const Indicators = () => {
       </div>
     )}
 
-    <div>Battery: {telemetry.motorControllers?.[0]?.batteryVoltage}v</div>
+    <div>Battery: {telemetry.motorControllers?.[0]?.batteryVoltage}V</div>
 
     <div>CPU temp: {Math.round(telemetry.controller.cpuTemperature)}&deg;C</div>
   </div>

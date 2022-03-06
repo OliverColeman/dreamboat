@@ -1,11 +1,11 @@
-import sysinfoType from 'systeminformation'
 import { Telemetry } from '../model/types'
 import { getMotorControllerState } from './motor'
-const systeminformation = window.require('systeminformation') as typeof sysinfoType
+import fsType from 'fs'
+const fs = window.require('fs') as typeof fsType
 
 let cpuTemperature = 0
-const updateCpuTemp = async () => {
-  cpuTemperature = (await systeminformation.cpuTemperature()).main
+const updateCpuTemp = () => {
+  cpuTemperature = parseInt(fs.readFileSync('/sys/class/thermal/thermal_zone0/temp').toString()) / 1000
   setTimeout(updateCpuTemp, 1000)
 }
 updateCpuTemp()
