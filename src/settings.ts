@@ -5,11 +5,19 @@ import { mmPerS2kmPerHr } from './util'
 /** Frequency for calculating wheel states, as frames per second. */
 export const frameRate = 20 // Per second.
 /** Maximum vehicle speed in mm / s */
-export const maxSpeed = 5 * mmPerS2kmPerHr // There are (1000*1000)/(60*60) mm/s in 1 km/h
+export const maxVehicleSpeed = 5 * mmPerS2kmPerHr // There are (1000*1000)/(60*60) mm/s in 1 km/h
 /** Maximum turn rate of vehicle in revolutions per second. */
 export const maxRPS = 0.05 // Revolutions/second
 /** Maximum turn rate of wheels */
 export const maxWheelSteerRPS = 1 // 60 RPM
+
+/** Maximum pivot point change factor. 
+ * This controls how far the desired pivot point can move, 
+ * relative to the current distance to the vehicle centre. */
+export const maxPivotPointDistanceChangeFactor = 0.5
+/** Maximum change in vehicle rotation speed (revolutions per second per second). */
+export const maxRotationDelta = maxRPS * 0.1
+
 /** Scaling of visualisation, in pixels/mm */
 export const visualScale = 0.125 // px/mm
 /** Spacing of visualisation grid lines, in mm */
@@ -59,7 +67,7 @@ export const joystick1 = {
   channelY: 3,
 }
 
-/** Threshold below which joystick inputs are ignored. */
+/** Threshold below which joystick inputs are considered zero. */
 export const movementMagnitudeThreshold = 0.03
 
 /** The ports of the motor controllers. */

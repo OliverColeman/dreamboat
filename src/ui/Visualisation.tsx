@@ -6,7 +6,7 @@ import Color from 'color'
 
 import { appDimensionsState, driveModeState, vehicleState } from '../model/state'
 import { makeStyles, useTheme } from '@material-ui/core'
-import { bedSize, gridSpacing, maxSpeed, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
+import { bedSize, gridSpacing, maxVehicleSpeed, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
 import { DriveMode, Coord } from '../model/types'
 
 Konva.angleDeg = false
@@ -94,8 +94,8 @@ export default function Visualisation () {
                 { [wheel, vehicle.wheelsTarget[idx]].map((w, i) => {
                   let colour = colourStopped
                   // Note speed is in mm/s.
-                  if (w.speed > 3) colour = colour.mix(colourForward, w.speed / maxSpeed)
-                  else if (w.speed < -3) colour = colour.mix(colourReverse, -w.speed / maxSpeed)
+                  if (w.speed > 3) colour = colour.mix(colourForward, w.speed / maxVehicleSpeed)
+                  else if (w.speed < -3) colour = colour.mix(colourReverse, -w.speed / maxVehicleSpeed)
                   if (i === 1) colour = colour.fade(0.5)
                   return <Direction
                     rotation={w.rotation}

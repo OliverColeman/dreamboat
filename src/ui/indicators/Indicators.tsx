@@ -4,7 +4,7 @@ import _ from 'lodash'
 
 import { telemetryState, vehicleState } from '../../model/state'
 import { fontSize } from '../../settings'
-import { mmPerS2kmPerHr } from '../../util'
+import { mmPerS2kmPerHr, rad2Deg } from '../../util'
 
 const useStyles = makeStyles<Theme>((theme) =>
   ({
@@ -17,8 +17,13 @@ const useStyles = makeStyles<Theme>((theme) =>
       width: 300,
       overflowX: 'hidden',
     }),
-    speed: () => ({
+    speedrpmroot: () => ({
       fontSize,
+    }),
+    speedrpm: () => ({
+      display: 'inline-block',
+      width: 80,
+      marginRight: 16,
     }),
     connected: () => ({
       // color: theme.palette.primary.main,
@@ -43,8 +48,13 @@ const Indicators = () => {
   const classes = useStyles(theme)
 
   return <div className={classes.root}>
-    <div className={classes.speed}>
-      {(vehicle.speedPredicted / mmPerS2kmPerHr).toFixed(1)} km/h
+    <div className={classes.speedrpmroot}>
+      <div className={classes.speedrpm}>
+        {(Math.abs(vehicle.speedPredicted) / mmPerS2kmPerHr).toFixed(1)} km/h
+      </div>
+      <div className={classes.speedrpm}>
+        {(rad2Deg(Math.abs(vehicle.rpmPredicted)) / 60).toFixed(1)} RPM
+      </div>
     </div>
 
     <strong>Motors</strong>

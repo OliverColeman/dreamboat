@@ -6,6 +6,13 @@ export const rad2Deg = (r:number) => r / Math.PI * 180
 
 export const vecLen = (x:number, y:number) => Math.sqrt(x * x + y * y)
 
+export const pointDistance = (p1: Point, p2:Point) => vecLen(p1.x - p2.x, p1.y - p2.y)
+
+export const lerpPoints = (p1: Point, p2:Point, u:number) => ({
+  x: p1.x + (p2.x - p1.x) * u,
+  y: p1.y + (p2.y - p1.y) * u,
+} as Point)
+
 export const constrainRange = (x:number, min:number, max:number) => {
   if (x < min) return min
   if (x > max) return max

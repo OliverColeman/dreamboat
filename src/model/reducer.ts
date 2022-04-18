@@ -1,21 +1,32 @@
 import produce from 'immer'
-import { RecoilState } from 'recoil'
 import Flatten from '@flatten-js/core'
 import _ from 'lodash'
 
-import { movementMagnitudeThreshold, maxSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate } from '../settings'
-import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle, vecLen } from '../util'
-import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2, MotorControllerState } from './types'
+import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, maxPivotPointDistanceChangeFactor, maxRotationDelta } from '../settings'
+import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle, vecLen, getPointFromPolar, pointDistance, lerpPoints, getPolarFromPoint } from '../util'
+import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2 } from './types'
 
 const pi = Math.PI
 const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
-const maxDeltaPerFrame = maxSpeed / frameRate
+const maxDeltaPerFrame = maxVehicleSpeed / frameRate
 const maxRotateAnglePerFrame = (maxRPS / frameRate) * pi * 2
+const maxRotationDeltaPerFrame = maxRotationDelta / frameRate
 
+/**
+ * Calculates new positions/angles and speeds for each wheel based on the control inputs and selected driving mode.
+ *
+ * Vehicle motion is always modelled as the vehile pivoting around a "pivot point";
+ * in order to move in a straight line the pivot point is moved out a long way from the vehicle (ideally infinitely).
+ * A target pivot point is determined from drive mode and the control inputs.
+ * An "achievable" pivot point for this iteration is then calculated from the current wheel positions and
+ * the target pivot point.
+ * The vehicle state is updated according to these calculations, including predicted new
+ * location, angle, speed, and rotation.
+ */
 export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
   produce((vehicle: VehicleState) => {
     if (control2d.some(c => c.r > movementMagnitudeThreshold)) {
-      const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted, pivot: currentPivot } = vehicle
+      const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted: currentRotationPredicted, pivot: currentPivot } = vehicle
 
       // For DAY_TRIPPER and HELTER_SKELTER mode,
       // base pivot angle is orthogonal to desired driving direction.
@@ -37,7 +48,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
       const PIVOT_RADIUS_MAX = 100000000
 
       // Polar coordinates for the pivot point (point to be rotated around).
-      const pivotTargetPolar:Polar = {
+      let pivotTargetPolar:Polar = {
         a: 0, // determined by control method.
         r:
           (mode === DriveMode.DRIVE_MY_CAR ? DRIVE_MY_CAR_TURN_RATE_FACTOR : delta)
@@ -45,7 +56,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
       }
 
       // The amount the vehicle will rotate around the pivot point, in radians.
-      let rotationDelta = 0 // determined by control method.
+      let rotation = 0 // determined by control method.
 
       if (mode === DriveMode.DRIVE_MY_CAR) {
         // Control0 y determines forward/backward speed, control1 x determines turn rate and direction.
@@ -65,14 +76,14 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
           // console.log('t2', Math.round(rad2Deg(pivotTargetPolar.a)), Math.round(pivotTargetPolar.r))
         }
 
-        rotationDelta
+        rotation
             = Math.atan2(deltaStep, pivotTargetPolar.r)
             * -(Math.sign(control2d[1].x) || 1)
             // * -Math.sign(control2d[0].y)
       } else if (mode === DriveMode.DAY_TRIPPER) {
         // control0 determines absolute direction, control1 spin rate.
-        pivotTargetPolar.a = pivotAngle - rotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
-        rotationDelta = !isTranslating
+        pivotTargetPolar.a = pivotAngle - currentRotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
+        rotation = !isTranslating
           ? turnRateStep * Math.sign(control2d[1].x)
           : Math.atan2(deltaStep, pivotTargetPolar.r)
               * (Math.sign(control2d[1].x) || 1)
@@ -83,13 +94,34 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
         const relativePivotX = (control2d[1].r > 0.1 ? control2d[1].x : 0)
 
         pivotTargetPolar.a = pivotAngle + relativePivotAngle
-        rotationDelta = !isTranslating
+        rotation = !isTranslating
           ? turnRateStep * Math.sign(relativePivotX)
           : Math.atan2(deltaStep, pivotTargetPolar.r)
               * (Math.sign(relativePivotX) || 1)
       }
 
-      rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
+      rotation = constrainRange(rotation, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
+
+      // Ensure target pivot point is not too far from current pivot point.
+      // This ensures a non-jerky ride.
+      const pivotTargetPoint = getPointFromPolar(pivotTargetPolar)
+      const pivotTargetDistanceDelta = pointDistance(pivotTargetPoint, currentPivot)
+      const allowedPivotTargetDistanceDelta = currentPivot.r * maxPivotPointDistanceChangeFactor
+      if (pivotTargetDistanceDelta > allowedPivotTargetDistanceDelta) {
+        pivotTargetPolar = getPolarFromPoint(lerpPoints(
+          currentPivot, pivotTargetPoint,
+          allowedPivotTargetDistanceDelta / pivotTargetDistanceDelta
+        ))
+      }
+
+      // Ensure change in (rotation) speed is not too fast. This ensures a non-jerky ride.
+      // Note: this has a direct relationship to the vehicle speed, as vehicle motion is
+      // always modelled as pivoting around a pivot point.
+      const rotationDelta = Math.abs(currentRotationPredicted - rotation)
+      if (rotationDelta > maxRotationDeltaPerFrame) {
+        rotation *= maxRotationDeltaPerFrame / rotationDelta
+      }
+
       pivotTargetPolar.a = normaliseAngle(pivotTargetPolar.a)
 
       // Desired pivot point relative to vehicle rotation and position.
@@ -97,22 +129,22 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
 
       const {
         pivotAchievable, // Actual pivot point we're aiming to achieve this time step.
-        rotationDeltaAchievable, // Achievable amount of rotation around pivotAchievable this time step.
+        rotationAchievable, // Achievable amount of rotation around pivotAchievable this time step.
         achievableWheelState, // Actual wheel angles we're aiming to achieve this time step.
         targetWheelState, // The current target wheel state (if no restrictions on wheel turn rate).
-      } = updateWheels(vehicle, pivotTarget, rotationDelta)
+      } = updateWheels(vehicle, pivotTarget, rotation)
 
       // Cartesian coordinates for the pivot point.
       // Absolute to vehicle rotation, relative to vehicle position.
       const pivotAbs:Point = {
-        x: Math.cos(rotationPredicted + pivotAchievable.a) * pivotAchievable.r,
-        y: Math.sin(rotationPredicted + pivotAchievable.a) * pivotAchievable.r,
+        x: Math.cos(currentRotationPredicted + pivotAchievable.a) * pivotAchievable.r,
+        y: Math.sin(currentRotationPredicted + pivotAchievable.a) * pivotAchievable.r,
       }
 
       // Simulated amount vehicle will move this step.
       const deltaVecSim:Point = {
-        x: pivotAbs.x - pivotAbs.x * Math.cos(rotationDeltaAchievable) + pivotAbs.y * Math.sin(rotationDeltaAchievable),
-        y: pivotAbs.y - pivotAbs.x * Math.sin(rotationDeltaAchievable) - pivotAbs.y * Math.cos(rotationDeltaAchievable),
+        x: pivotAbs.x - pivotAbs.x * Math.cos(rotationAchievable) + pivotAbs.y * Math.sin(rotationAchievable),
+        y: pivotAbs.y - pivotAbs.x * Math.sin(rotationAchievable) - pivotAbs.y * Math.cos(rotationAchievable),
       }
 
       // Update relative state variables.
@@ -120,8 +152,9 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
       vehicle.pivotTarget = pivotTarget
       vehicle.wheels = achievableWheelState
       vehicle.wheelsTarget = targetWheelState
-      vehicle.rotationPredicted = normaliseAngle((vehicle.rotationPredicted + rotationDeltaAchievable + pi * 2) % (pi * 2))
-      vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationDeltaAchievable)
+      vehicle.rotationPredicted = normaliseAngle((vehicle.rotationPredicted + rotationAchievable + pi * 2) % (pi * 2))
+      vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationAchievable)
+      vehicle.rpmPredicted = rotationAchievable * frameRate
 
       // Update absolute state variables, only used for simulation.
       vehicle.centreAbs.x += deltaVecSim.x
@@ -133,6 +166,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
       vehicle.wheelsTarget = vehicle.wheels.map(w => ({ ...w, speed: 0 }))
       vehicle.pivotTarget = vehicle.pivot
       vehicle.speedPredicted = 0
+      vehicle.rpmPredicted = 0
     }
   })
 
@@ -141,7 +175,7 @@ type NewWheelStateInfo = {
   /** The pivot point that is achievable in the next time step, given wheel turn speed limitations. */
   pivotAchievable: Coord
   /** The amount of rotation that is achievable in the next time (limited by maximum wheel speed). */
-  rotationDeltaAchievable
+  rotationAchievable
   /** The wheel state that is achievable in the next time step, given wheel turn speed limitations. */
   achievableWheelState: WheelState[]
   /** The target wheel state, without considering wheel turn speed limitations. */
@@ -193,22 +227,22 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
     if (Math.abs(wheelAngleDeltas[indexOfWheelTurningTheMost]) <= maxWheelSteerDeltaPerFrame * 1.01) {
       // console.log('    found valid solution')
 
-      let rotationDeltaAchievable = targetRotationDelta
+      let rotationAchievable = targetRotationDelta
 
       // If any wheels are set to go faster than possible (can happen for outside wheels when turning),
       // scale speed back to achievable amount.
       const maxWheelSpeed = _.max(achievableWheelState.map(ws => Math.abs(ws.speed)))
-      if (maxWheelSpeed > maxSpeed) {
-        const scaleFactor = maxSpeed / maxWheelSpeed
+      if (maxWheelSpeed > maxVehicleSpeed) {
+        const scaleFactor = maxVehicleSpeed / maxWheelSpeed
         for (const ws of achievableWheelState) {
           ws.speed *= scaleFactor
         }
-        rotationDeltaAchievable = targetRotationDelta * scaleFactor
+        rotationAchievable = targetRotationDelta * scaleFactor
       }
 
       return {
         pivotAchievable,
-        rotationDeltaAchievable,
+        rotationAchievable,
         achievableWheelState,
         targetWheelState,
       }
@@ -314,8 +348,8 @@ const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotation
  * @return The speed, in mm/s.
  */
 const getSpeedFromAngularDisplacement = (pivot:Coord, point:Vec2, rotationDelta:number) => {
-  const wheelDistanceToPivot = vecLen(point.x - pivot.x, point.y - pivot.y)
-  const wheelDistanceToTravel = 2 * wheelDistanceToPivot * Math.sin(rotationDelta / 2)
-  const speed = wheelDistanceToTravel * frameRate
+  const distanceToPivot = vecLen(point.x - pivot.x, point.y - pivot.y)
+  const distanceToTravel = 2 * distanceToPivot * Math.sin(rotationDelta / 2)
+  const speed = distanceToTravel * frameRate
   return speed
 }

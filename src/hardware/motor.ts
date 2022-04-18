@@ -3,7 +3,7 @@ import _ from 'lodash'
 import { SabertoothUSB, SingleChannel, listSabertoothDevices } from 'sabertooth-usb'
 
 import { MotorControllerState, VehicleState } from '../model/types'
-import { driveMotorSerialNumbers, maxSpeed, motorControllerStateUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor } from '../settings'
+import { driveMotorSerialNumbers, maxVehicleSpeed, motorControllerStateUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor } from '../settings'
 
 const motorController:Array<SabertoothUSB> = [null, null]
 
@@ -48,7 +48,7 @@ export const updateWheels = (vehicle:VehicleState) => {
           motorController[mcIndex].setMotor(motorChannel, 0)
         } else {
           // Allows for numerical imprecision, eg sometimes a rate of 1.000000000002 can occur as a result of the division.
-          const rate = Math.min(1, Math.max(-1, wheel.speed / maxSpeed))
+          const rate = Math.min(1, Math.max(-1, wheel.speed / maxVehicleSpeed))
           motorController[mcIndex].setMotor(motorChannel, rate)
         }
       } catch (err) {

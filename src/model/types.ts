@@ -70,8 +70,10 @@ export type VehicleState = {
   pivotTarget: Coord
   /** Current predicted pivot point in absolute coordinates */
   pivotAbs:Point
-  /** Current predicted speed */
+  /** Current predicted speed, mm/s */
   speedPredicted: number
+  /** Current predicted angular velocity, rad/s */
+  rpmPredicted: number
   /** Current error state, if any */
   error:string|null
 }
