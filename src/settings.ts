@@ -15,13 +15,13 @@ export const visualScale = 0.125 // px/mm
 /** Spacing of visualisation grid lines, in mm */
 export const gridSpacing = 1000 // mm
 
-export const bedSize:Dimensions = {
+export const bedSize: Dimensions = {
   width: 1530,
   height: 2030,
 }
 export const wheelCentreMargin = 250
 export const wheelDiameter = 350
-export const wheelPositions:Array<Vec2> = [
+export const wheelPositions: Array<Vec2> = [
   {
     x: -bedSize.width / 2 + wheelCentreMargin,
     y: -bedSize.height / 2 + wheelCentreMargin,
@@ -43,7 +43,7 @@ export const wheelPositions:Array<Vec2> = [
 export const controlVisualSize = 121
 export const fontSize = 36
 
-export const controlType:ControlType = 'joystick'
+export const controlType: ControlType = 'joystick'
 
 export const joystickADCConfig: Partial<ADCConfig> = Object.freeze({
   sampleFrequency: 100,

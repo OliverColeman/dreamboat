@@ -4,13 +4,19 @@ import { SabertoothUSB, SingleChannel, listSabertoothDevices } from 'sabertooth-
 
 import { MotorControllerState, VehicleState } from '../model/types'
 import { driveMotorSerialNumbers, maxSpeed, motorControllerStateUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor } from '../settings'
+import { logger } from '../util'
 
 const motorController:Array<SabertoothUSB> = [null, null]
 
 listSabertoothDevices().then(devices =>
   driveMotorSerialNumbers.forEach((serialNumber, mcIndex) => {
+    const device = devices.find(d => d.serialNumber === serialNumber)
+    if (device === undefined) {
+      logger.info(`Could not find device ${serialNumber}`)
+      return
+    }
     motorController[mcIndex] = new SabertoothUSB(
-      devices.find(d => d.serialNumber === serialNumber).path,
+      device.path,
       {
         baudRate: 115200,
         maxMotorOutputRate: motorControllerMaxMotorOutputRate,

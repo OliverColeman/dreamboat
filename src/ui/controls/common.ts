@@ -6,7 +6,7 @@ export type Control2DProps = {
   id: Controls2D
 }
 
-export const update2DControlCoords = (x:number, y:number) => {
+export const update2DControlCoords = (x: number, y: number) => {
   x = constrainRange(x, -1, 1)
   y = constrainRange(y, -1, 1)
   let { a, r } = getCoordFromPoint({ x, y })

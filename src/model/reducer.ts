@@ -37,7 +37,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
       const PIVOT_RADIUS_MAX = 100000000
 
       // Polar coordinates for the pivot point (point to be rotated around).
-      const pivotTargetPolar:Polar = {
+      const pivotTargetPolar: Polar = {
         a: 0, // determined by control method.
         r:
           (mode === DriveMode.DRIVE_MY_CAR ? DRIVE_MY_CAR_TURN_RATE_FACTOR : delta)
@@ -66,16 +66,16 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
         }
 
         rotationDelta
-            = Math.atan2(deltaStep, pivotTargetPolar.r)
-            * -(Math.sign(control2d[1].x) || 1)
-            // * -Math.sign(control2d[0].y)
+          = Math.atan2(deltaStep, pivotTargetPolar.r)
+          * -(Math.sign(control2d[1].x) || 1)
+        // * -Math.sign(control2d[0].y)
       } else if (mode === DriveMode.DAY_TRIPPER) {
         // control0 determines absolute direction, control1 spin rate.
         pivotTargetPolar.a = pivotAngle - rotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
         rotationDelta = !isTranslating
           ? turnRateStep * Math.sign(control2d[1].x)
           : Math.atan2(deltaStep, pivotTargetPolar.r)
-              * (Math.sign(control2d[1].x) || 1)
+          * (Math.sign(control2d[1].x) || 1)
       } else if (mode === DriveMode.HELTER_SKELTER) {
         // control0 determines relative direction, control1 spin rate and pivot point.
         // Need a threshold on the magnitude so the pivot angle doesn't fluctuate wildly when the stick isn't being moved.
@@ -86,7 +86,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
         rotationDelta = !isTranslating
           ? turnRateStep * Math.sign(relativePivotX)
           : Math.atan2(deltaStep, pivotTargetPolar.r)
-              * (Math.sign(relativePivotX) || 1)
+          * (Math.sign(relativePivotX) || 1)
       }
 
       rotationDelta = constrainRange(rotationDelta, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
@@ -104,13 +104,13 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
 
       // Cartesian coordinates for the pivot point.
       // Absolute to vehicle rotation, relative to vehicle position.
-      const pivotAbs:Point = {
+      const pivotAbs: Point = {
         x: Math.cos(rotationPredicted + pivotAchievable.a) * pivotAchievable.r,
         y: Math.sin(rotationPredicted + pivotAchievable.a) * pivotAchievable.r,
       }
 
       // Simulated amount vehicle will move this step.
-      const deltaVecSim:Point = {
+      const deltaVecSim: Point = {
         x: pivotAbs.x - pivotAbs.x * Math.cos(rotationDeltaAchievable) + pivotAbs.y * Math.sin(rotationDeltaAchievable),
         y: pivotAbs.y - pivotAbs.x * Math.sin(rotationDeltaAchievable) - pivotAbs.y * Math.cos(rotationDeltaAchievable),
       }
@@ -145,7 +145,7 @@ type NewWheelStateInfo = {
   /** The wheel state that is achievable in the next time step, given wheel turn speed limitations. */
   achievableWheelState: WheelState[]
   /** The target wheel state, without considering wheel turn speed limitations. */
-  targetWheelState : WheelState[]
+  targetWheelState: WheelState[]
 }
 
 /**
@@ -154,7 +154,7 @@ type NewWheelStateInfo = {
  * @param targetPivot The target pivot point, relative to current vehicle rotation and position.
  * @param targetRotationDelta The amount the vehicle is to rotate around the target pivot point, in radians. Used to determine wheel speeds.
  */
-function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotationDelta:number): NewWheelStateInfo {
+function updateWheels (vehicleState: VehicleState, targetPivot: Coord, targetRotationDelta: number): NewWheelStateInfo {
   // console.log('==============')
   console.log('maxAllowedAngleDelta', rad2Deg(maxWheelSteerDeltaPerFrame))
 
@@ -163,7 +163,7 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
   // Determine closest achievable pivot point to desired from current.
 
   let pivotAchievable = targetPivot
-  let targetWheelState: WheelState[]|null = null
+  let targetWheelState: WheelState[] | null = null
   for (let attempt = 0; ; attempt++) {
     // console.log('attempt', attempt)
     // console.log('pivotAchievable:', rad2Deg(pivotAchievable.a), pivotAchievable.r)
@@ -272,7 +272,7 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
  * @param rotationDelta The amount the vehicle centre is to rotate around the pivot point.
  * @return New wheel states.
  */
-const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotationDelta:number): WheelState[] =>
+const calculateWheelStateForPivot = (wheels: WheelState[], pivot: Coord, rotationDelta: number): WheelState[] =>
   wheels.map((w, wi) => {
     const wp = wheelPositions[wi]
     let a = Math.atan2(pivot.y - wp.y, pivot.x - wp.x)
@@ -285,7 +285,7 @@ const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotation
     // If the wheel needs to turn more than 90 degrees,
     // then turn the other way and reverse the direction.
     if (Math.abs(normaliseAngle(a - w.rotation)) >= Math.PI - maxWheelSteerDeltaPerFrame) {
-    // if (Math.abs(normaliseAngle(a - w.rotation)) > Math.PI / 2) {
+      // if (Math.abs(normaliseAngle(a - w.rotation)) > Math.PI / 2) {
       // console.log('    rev', wi, rad2Deg(a), rad2Deg(normaliseAngle(a + Math.PI)))
       a = normaliseAngle(a + Math.PI)
       reversed = true
@@ -313,7 +313,7 @@ const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotation
  * @param rotationDelta The amount the point is rotated around the pivot point.
  * @return The speed, in mm/s.
  */
-const getSpeedFromAngularDisplacement = (pivot:Coord, point:Vec2, rotationDelta:number) => {
+const getSpeedFromAngularDisplacement = (pivot: Coord, point: Vec2, rotationDelta: number) => {
   const wheelDistanceToPivot = vecLen(point.x - pivot.x, point.y - pivot.y)
   const wheelDistanceToTravel = 2 * wheelDistanceToPivot * Math.sin(rotationDelta / 2)
   const speed = wheelDistanceToTravel * frameRate

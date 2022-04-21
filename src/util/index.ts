@@ -1,33 +1,33 @@
-import { Polar, Point } from './model/types'
+import { Polar, Point } from '../model/types'
 
-export const deg2Rad = (d:number) => d / 180 * Math.PI
+export const deg2Rad = (d: number) => d / 180 * Math.PI
 
-export const rad2Deg = (r:number) => r / Math.PI * 180
+export const rad2Deg = (r: number) => r / Math.PI * 180
 
-export const vecLen = (x:number, y:number) => Math.sqrt(x * x + y * y)
+export const vecLen = (x: number, y: number) => Math.sqrt(x * x + y * y)
 
-export const constrainRange = (x:number, min:number, max:number) => {
+export const constrainRange = (x: number, min: number, max: number) => {
   if (x < min) return min
   if (x > max) return max
   return x
 }
 
-export const getPointFromPolar = ({ a, r }:Polar):Point => ({
+export const getPointFromPolar = ({ a, r }: Polar): Point => ({
   x: Math.cos(a) * r,
   y: Math.sin(a) * r,
 })
 
-export const getPolarFromPoint = ({ x, y }:Point):Polar => ({
+export const getPolarFromPoint = ({ x, y }: Point): Polar => ({
   a: Math.atan2(y, x),
   r: vecLen(x, y),
 })
 
-export const getCoordFromPolar = (p:Polar) => ({
+export const getCoordFromPolar = (p: Polar) => ({
   ...p,
   ...getPointFromPolar(p),
 })
 
-export const getCoordFromPoint = (p:Point) => ({
+export const getCoordFromPoint = (p: Point) => ({
   ...p,
   ...getPolarFromPoint(p),
 })
@@ -51,3 +51,5 @@ export const normaliseAngle = (a: number) => {
 
 /** Factor to convert mm/s to km/hr. */
 export const mmPerS2kmPerHr = (1000 * 1000) / (60 * 60)
+
+export { default as logger } from './logger'
