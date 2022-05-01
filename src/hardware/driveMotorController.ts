@@ -2,8 +2,8 @@
 import _ from 'lodash'
 import { SabertoothUSB, SingleChannel, listSabertoothDevices } from 'sabertooth-usb'
 
-import { MotorControllerState, VehicleState } from '../model/types'
-import { driveMotorSerialNumbers, maxVehicleSpeed, motorControllerStateUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor } from '../settings'
+import { DriveMotorControllerTelemetry, VehicleState, WheelDriveTelemetry } from '../model/types'
+import { driveMotorSerialNumbers, maxVehicleSpeed, motorControllerTelemetryUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts } from '../settings'
 
 const motorController:Array<SabertoothUSB> = [null, null]
 
@@ -12,8 +12,10 @@ listSabertoothDevices().then(devices =>
     motorController[mcIndex] = new SabertoothUSB(
       devices.find(d => d.serialNumber === serialNumber).path,
       {
-        baudRate: 115200,
+        baudRate: usbBaudRate,
+        timeout: usbGetRetryTimeout,
         maxMotorOutputRate: motorControllerMaxMotorOutputRate,
+        maxGetAttemptCount: usbMaxGetAttempts,
       }
     )
 
@@ -23,21 +25,22 @@ listSabertoothDevices().then(devices =>
 
 // This is updated asynchronously and is intended to be mutable.
 // Periodically the structure is deep-copied into a recoil state value.
-const motorControllerState:MotorControllerState[] = motorController.map(() => ({
+const controllerTelemetry:DriveMotorControllerTelemetry[] = motorController.map(() => ({
   connected: false,
   batteryVoltage: 0,
-  motors: _.range(motorsPerController).map(() => ({ rate: 0, current: 0, temperature: 0 })),
   error: null,
 }))
 
-const mcGood = (motorState:MotorControllerState) => motorState.connected && !motorState.error
+const motorTelemetry:WheelDriveTelemetry[] = _.range(motorsPerController).map(() => ({ driveRate: 0, driveCurrent: 0, driveOutputTemperature: 0 }))
+
+const mcGood = (telemetry:DriveMotorControllerTelemetry) => telemetry.connected && !telemetry.error
 
 export const updateWheels = (vehicle:VehicleState) => {
   // If the motor controllers have been initialised.
   if (motorController[0] !== null) {
-    const { wheels } = vehicle
+    const { wheelsNext: wheels } = vehicle
 
-    let allGood = mcGood(motorControllerState[0]) && mcGood(motorControllerState[1])
+    let allGood = mcGood(controllerTelemetry[0]) && mcGood(controllerTelemetry[1])
     wheels.forEach((wheel, wheelIndex) => {
       const mcIndex = Math.floor(wheelIndex / motorsPerController)
       const motorChannel = wheelIndex % motorsPerController + 1 as SingleChannel
@@ -53,33 +56,33 @@ export const updateWheels = (vehicle:VehicleState) => {
         }
       } catch (err) {
         allGood = false
-        motorControllerState[mcIndex].error = '' + err
+        controllerTelemetry[mcIndex].error = '' + err
       }
     })
   }
 }
 
-export const getMotorControllerState = () => _.cloneDeep(motorControllerState)
+export const getDriveMotorControllerTelemetry = () => _.cloneDeep(controllerTelemetry)
+export const getDriveMotorTelemetry = () => _.cloneDeep(motorTelemetry)
 
 // Periodically updates the internal mutable record of controller state and stats.
-const updateMotorControllerState = async () => {
+const updateMotorControllerTelemetry = async () => {
   const updateStarted = Date.now()
 
   // If the motor controllers have been initialised.
   if (motorController[0] !== null) {
-    for (let mci = 0; mci < motorController.length; mci++) {
+    for (let mci = 0, wi = 0; mci < motorController.length; mci++) {
       const mc = motorController[mci]
-      const mcs = motorControllerState[mci]
+      const mcs = controllerTelemetry[mci]
       mcs.connected = mc.isConnected()
 
       if (mcs.connected) {
         try {
           mcs.batteryVoltage = await mc.getBatteryVoltage()
-          for (let mi = 0; mi < motorsPerController; mi++) {
+          for (let mi = 0; mi < motorsPerController; mi++, wi++) {
             // Divide rate by motorControllerMaxMotorOutputRate so we get range [0, 1].
-            mcs.motors[mi].rate = (await mc.getMotorDriverOutputRate(mi + 1 as SingleChannel)) / motorControllerMaxMotorOutputRate
-            mcs.motors[mi].current = await mc.getMotorCurrent(mi + 1 as SingleChannel)
-            mcs.motors[mi].temperature = await mc.getMotorDriverOutputTemperature(mi + 1 as SingleChannel)
+            motorTelemetry[wi].driveRate = (await mc.getMotorDriverOutputRate(mi + 1 as SingleChannel)) / motorControllerMaxMotorOutputRate
+            motorTelemetry[wi].driveOutputTemperature = await mc.getMotorDriverOutputTemperature(mi + 1 as SingleChannel)
           }
           mcs.error = null
         } catch (err) {
@@ -93,8 +96,8 @@ const updateMotorControllerState = async () => {
 
   // Update no more frequently than motorControllerStateUpdateInterval
   // This allows for the update taking longer than the desired interval.
-  setTimeout(updateMotorControllerState, Math.max(1, motorControllerStateUpdateInterval - (Date.now() - updateStarted)))
+  setTimeout(updateMotorControllerTelemetry, Math.max(1, motorControllerTelemetryUpdateInterval - (Date.now() - updateStarted)))
 }
 
 // Start process to periodically update motor controller state and stats.
-updateMotorControllerState()
+updateMotorControllerTelemetry()

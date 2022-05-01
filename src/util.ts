@@ -50,11 +50,16 @@ export const indexOfMaximum = (values: number[]) => {
   return maxIndex
 }
 
-export const normaliseAngle = (a: number) => {
-  while (a < -Math.PI) a += Math.PI * 2
-  while (a > Math.PI) a -= Math.PI * 2
-  return a
+/** Returns the given value normalised to be within the specified range, by subtracting or adding `max-min` from/to `val`. */
+export const normaliseValueToRange = (min:number, val:number, max:number) => {
+  const range = max - min
+  while (val > max) val -= range
+  while (val < min) val += range
+  return val
 }
+
+/** Normalise the given angle, in radians, to the range [-PI, PI] */
+export const normaliseAngle = (a: number) => normaliseValueToRange(-Math.PI, a, Math.PI)
 
 /** Factor to convert mm/s to km/hr. */
 export const mmPerS2kmPerHr = (1000 * 1000) / (60 * 60)

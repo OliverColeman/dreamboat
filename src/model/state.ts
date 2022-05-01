@@ -1,6 +1,6 @@
 import { atom, atomFamily } from 'recoil'
 import { wheelPositions } from '../settings'
-import { DriveMode, Dimensions, Coord, VehicleState, Telemetry } from './types'
+import { DriveMode, Dimensions, Coord, VehicleState } from './types'
 import { getCoordFromPolar } from '../util'
 import _ from 'lodash'
 
@@ -29,23 +29,14 @@ export const vehicleState = atom<VehicleState>({
   default: {
     centreAbs: { x: 0, y: 0 },
     rotationPredicted: 0,
-    wheels: wheelPositions.map(() => ({ speed: 0, rotation: 0, flipped: false })),
-    wheelsTarget: wheelPositions.map(() => ({ speed: 0, rotation: 0, flipped: false })),
+    wheelsNext: wheelPositions.map(() => ({ speed: 0, angle: 0, flipped: false })),
+    wheelsTarget: wheelPositions.map(() => ({ speed: 0, angle: 0, flipped: false })),
     pivot: getCoordFromPolar({ r: 10000, a: 0 }),
     pivotTarget: getCoordFromPolar({ r: 10000, a: 0 }),
     pivotAbs: { x: 0, y: 0 },
     speedPredicted: 0,
     rpmPredicted: 0,
     error: null,
-  },
-})
-
-export const telemetryState = atom<Telemetry>({
-  key: 'TelemetryState',
-  default: {
-    motorControllers: [],
-    controller: {
-      cpuTemperature: 0,
-    },
+    telemetry: null,
   },
 })

@@ -82,7 +82,7 @@ export default function Visualisation () {
               fill={theme.palette.primary.main}
             />
 
-            { vehicle.wheels.map((wheel, idx) =>
+            { vehicle.wheelsNext.map((wheel, idx) =>
               <Group
                 key={`wheel-${idx}`}
                 {...wheelPositions[idx]}
@@ -98,7 +98,7 @@ export default function Visualisation () {
                   else if (w.speed < -3) colour = colour.mix(colourReverse, -w.speed / maxVehicleSpeed)
                   if (i === 1) colour = colour.fade(0.5)
                   return <Direction
-                    rotation={w.rotation}
+                    rotation={w.angle}
                     length={wheelDiameter}
                     colour={colour.toString()}
                     key={`wheel-${idx}-${i}`}

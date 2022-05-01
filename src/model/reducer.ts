@@ -4,7 +4,7 @@ import _ from 'lodash'
 
 import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, maxPivotPointDistanceChangeFactor, maxRotationDelta } from '../settings'
 import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle, vecLen, getPointFromPolar, pointDistance, lerpPoints, getPolarFromPoint } from '../util'
-import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2 } from './types'
+import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2, Telemetry, WheelTelemetry } from './types'
 
 const pi = Math.PI
 const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
@@ -23,7 +23,7 @@ const maxRotationDeltaPerFrame = maxRotationDelta / frameRate
  * The vehicle state is updated according to these calculations, including predicted new
  * location, angle, speed, and rotation.
  */
-export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
+export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetry:Telemetry) =>
   produce((vehicle: VehicleState) => {
     if (control2d.some(c => c.r > movementMagnitudeThreshold)) {
       const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted: currentRotationPredicted, pivot: currentPivot } = vehicle
@@ -132,7 +132,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
         rotationAchievable, // Achievable amount of rotation around pivotAchievable this time step.
         achievableWheelState, // Actual wheel angles we're aiming to achieve this time step.
         targetWheelState, // The current target wheel state (if no restrictions on wheel turn rate).
-      } = updateWheels(vehicle, pivotTarget, rotation)
+      } = updateWheels(vehicle, pivotTarget, rotation, telemetry.wheels)
 
       // Cartesian coordinates for the pivot point.
       // Absolute to vehicle rotation, relative to vehicle position.
@@ -150,7 +150,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
       // Update relative state variables.
       vehicle.pivot = pivotAchievable
       vehicle.pivotTarget = pivotTarget
-      vehicle.wheels = achievableWheelState
+      vehicle.wheelsNext = achievableWheelState
       vehicle.wheelsTarget = targetWheelState
       vehicle.rotationPredicted = normaliseAngle((vehicle.rotationPredicted + rotationAchievable + pi * 2) % (pi * 2))
       vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationAchievable)
@@ -162,12 +162,13 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[]) =>
       vehicle.pivotAbs.x = xAbs + pivotAbs.x
       vehicle.pivotAbs.y = yAbs + pivotAbs.y
     } else {
-      vehicle.wheels = vehicle.wheels.map(w => ({ ...w, speed: 0 }))
-      vehicle.wheelsTarget = vehicle.wheels.map(w => ({ ...w, speed: 0 }))
+      vehicle.wheelsNext = vehicle.wheelsNext.map(w => ({ ...w, speed: 0 }))
+      vehicle.wheelsTarget = vehicle.wheelsNext.map(w => ({ ...w, speed: 0 }))
       vehicle.pivotTarget = vehicle.pivot
       vehicle.speedPredicted = 0
       vehicle.rpmPredicted = 0
     }
+    vehicle.telemetry = telemetry
   })
 
 /** Return value for the function that determines new wheel states given a target pivot point and speed. */
@@ -188,11 +189,11 @@ type NewWheelStateInfo = {
  * @param targetPivot The target pivot point, relative to current vehicle rotation and position.
  * @param targetRotationDelta The amount the vehicle is to rotate around the target pivot point, in radians. Used to determine wheel speeds.
  */
-function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotationDelta:number): NewWheelStateInfo {
+function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotationDelta:number, wheelTelemetry:WheelTelemetry[]): NewWheelStateInfo {
   // console.log('==============')
   console.log('maxAllowedAngleDelta', rad2Deg(maxWheelSteerDeltaPerFrame))
 
-  const { wheels, pivot: currentPivot } = vehicleState
+  const { wheelsNext: wheels, pivot: currentPivot } = vehicleState
 
   // Determine closest achievable pivot point to desired from current.
 
@@ -202,8 +203,8 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
     // console.log('attempt', attempt)
     // console.log('pivotAchievable:', rad2Deg(pivotAchievable.a), pivotAchievable.r)
 
-    const achievableWheelState = calculateWheelStateForPivot(wheels, pivotAchievable, targetRotationDelta)
-    const achievableWheelAngles = achievableWheelState.map(ws => ws.rotation)
+    const achievableWheelState = calculateWheelStateForPivot(wheels, pivotAchievable, targetRotationDelta, wheelTelemetry)
+    const achievableWheelAngles = achievableWheelState.map(ws => ws.angle)
 
     // First time through the loop we get the target wheel state from calculateWheelStateForPivot(),
     // record it for returning later.
@@ -211,7 +212,7 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
       targetWheelState = achievableWheelState
     }
 
-    const wheelAngleDeltas = achievableWheelAngles.map((ta, i) => normaliseAngle(ta - wheels[i].rotation))
+    const wheelAngleDeltas = achievableWheelAngles.map((ta, i) => normaliseAngle(ta - wheelTelemetry[i].angle))
 
     // Determine which wheel would have to turn the most to achieve the target pivot point.
     const indexOfWheelTurningTheMost = indexOfMaximum(wheelAngleDeltas.map(Math.abs))
@@ -270,7 +271,7 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
     // that it can achieve this time step.
     const achieveableAngleForWheelTurningTheMost
       = normaliseAngle(
-        wheels[indexOfWheelTurningTheMost].rotation + Math.PI / 2 // Normal to current orientation
+        wheelTelemetry[indexOfWheelTurningTheMost].angle + Math.PI / 2 // Normal to current orientation
         + maxWheelSteerDeltaPerFrame // Plus the amount it can turn this time step
         * Math.sign(wheelAngleDeltas[indexOfWheelTurningTheMost]) // In the direction it needs to turn
         // Flipped 180 if that would be closer to the target
@@ -306,9 +307,10 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
  * @param rotationDelta The amount the vehicle centre is to rotate around the pivot point.
  * @return New wheel states.
  */
-const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotationDelta:number): WheelState[] =>
+const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotationDelta:number, wheelTelemetry:WheelTelemetry[]): WheelState[] =>
   wheels.map((w, wi) => {
     const wp = wheelPositions[wi]
+    const telemetry = wheelTelemetry[wi]
     let a = Math.atan2(pivot.y - wp.y, pivot.x - wp.x)
     if (w.flipped) {
       a = normaliseAngle(a + Math.PI)
@@ -318,7 +320,7 @@ const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotation
 
     // If the wheel needs to turn more than 90 degrees,
     // then turn the other way and reverse the direction.
-    if (Math.abs(normaliseAngle(a - w.rotation)) >= Math.PI - maxWheelSteerDeltaPerFrame) {
+    if (Math.abs(normaliseAngle(a - telemetry.angle)) >= Math.PI - maxWheelSteerDeltaPerFrame) {
     // if (Math.abs(normaliseAngle(a - w.rotation)) > Math.PI / 2) {
       // console.log('    rev', wi, rad2Deg(a), rad2Deg(normaliseAngle(a + Math.PI)))
       a = normaliseAngle(a + Math.PI)
@@ -333,7 +335,7 @@ const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotation
     // const speed = wheelDistanceToTravel * frameRate
 
     return {
-      rotation: a,
+      angle: a,
       flipped,
       speed: getSpeedFromAngularDisplacement(pivot, wp, rotationDelta) * (flipped ? -1 : 1),
     }

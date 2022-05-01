@@ -2,7 +2,7 @@ import { Theme, makeStyles, useTheme } from '@material-ui/core'
 import { useRecoilValue } from 'recoil'
 import _ from 'lodash'
 
-import { telemetryState, vehicleState } from '../../model/state'
+import { vehicleState } from '../../model/state'
 import { fontSize } from '../../settings'
 import { mmPerS2kmPerHr, rad2Deg } from '../../util'
 
@@ -42,7 +42,7 @@ const useStyles = makeStyles<Theme>((theme) =>
 
 const Indicators = () => {
   const vehicle = useRecoilValue(vehicleState)
-  const telemetry = useRecoilValue(telemetryState)
+  const telemetry = vehicle.telemetry
 
   const theme = useTheme()
   const classes = useStyles(theme)
@@ -58,23 +58,30 @@ const Indicators = () => {
     </div>
 
     <strong>Motors</strong>
-    {telemetry.motorControllers.map((mc, mci) =>
+    {telemetry !== null && telemetry.motorControllers.map((mc, mci) =>
       <div
         key={`mc${mci}`}
         className={mc.connected && !mc.error ? classes.connected : classes.disconnected}
       >
         {mc.error
-          ? <div>{mc.error}</div>
-          : mc.motors.map((motor, mi) =>
-              <div className={classes.fieldRow} key={`mc${mci}-m${mi}`}>
+          ? <div>{mc.error}</div> // If an error occurred with the motor controller, display that instead of the wheel telemetry.
+          : telemetry.wheels.slice(mci * 2, mci * 2 + 2).map((wheel, wi) =>
+              <div className={classes.fieldRow} key={`mc${mci}-m${wi}`}>
                 <div className={classes.field}>
-                  {Math.round(motor.rate * 100)}%
+                  {Math.round(wheel.driveRate * 100)}%
                 </div>
                 <div className={classes.field}>
-                  {motor.current.toFixed(1)}A
+                  {wheel.driveCurrent.toFixed(1)}A
                 </div>
                 <div className={classes.field}>
-                  {motor.temperature}&deg;C
+                  {wheel.driveOutputTemperature}&deg;C
+                </div>
+
+                <div className={classes.field}>
+                  {Math.round(wheel.steeringRate * 100)}%
+                </div>
+                <div className={classes.field}>
+                  {wheel.steeringCurrent.toFixed(1)}A
                 </div>
               </div>
           )

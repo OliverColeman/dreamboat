@@ -14,44 +14,70 @@ export type Polar = {
 }
 export type Coord = Point & Polar
 
-/** Current state of a wheel */
+/** Target state of a wheel */
 export type WheelState = {
-  /** Desired speed in mm/s */
+  /** Desired speed in mm/s. */
   speed: number
-  /** Desired rotation relative to vehicle */
-  rotation: number
+  /** Desired rotation relative to vehicle, in range [-pi, pi] */
+  angle: number
   /** Is the wheel direction currently flipped 180 degrees. */
   flipped: boolean
 }
 
-/** Information about a drive motor and motor-specific controller stats. */
-export type MotorState = {
-  /** Drive rate, in range [-1, 1]. */
-  rate: number
-  /** Current being drawn by motor in Amps. */
-  current: number
-  /** Temperature of motor-specific output transistors in deg. C. */
-  temperature: number
+/** Information about a drive motor. Provided by the drive motor controllers. */
+export type WheelDriveTelemetry = {
+  /** Rate the drive motor is being driven at, in range [-1, 1]. */
+  driveRate: number
+  /** Temperature of output transistors on drive motor controller in deg. C. */
+  driveOutputTemperature: number
 }
 
+/** Information about wheel steering. Provided by the downlow MCU. */
+export type DownlowWheelTelemetry = {
+  /** Indicates ready status of the wheel - a wheel is ready when it knows its position. */
+  ready: boolean
+  /** Current wheel angle, in range [-pi, pi]. */
+  angle: number
+  /** Rate the steering motor is being driven at, in range [-1, 1]. */
+  steeringRate: number
+  /** Number of seconds a wheel seems to have been stuck for -
+   * a wheel is stuck when it isn't turning sufficiently fast enough towards the target angle. */
+  stuckTime: number
+  /** Current being drawn by steering motor in Amps. */
+  steeringCurrent: number
+  /** Current being drawn by drive motor in Amps. */
+  driveCurrent: number // Located in WheelSteeringTelemetry because the data is collected by the downlow MCU.
+
+}
+
+export type WheelTelemetry = WheelDriveTelemetry & DownlowWheelTelemetry
+
 /** Information about the drive motors and controllers. */
-export type MotorControllerState = {
+export type DriveMotorControllerTelemetry = {
   /** Flag indicating successful connection to motor controller. */
   connected: boolean
   /** Battery voltage reported by motor controller. */
   batteryVoltage: number
-  /** State of the motors for this controller. */
-  motors: MotorState[]
   error: string
 }
 
-export type ControllerState = {
+/** Information about the microcontroller under the vehicle (which controls steering motors and mayne other things). */
+export type DownLowTelemetry = {
+  isConnected: boolean
+  error: string
+}
+
+/** Information about the handheld controller
+ * (which contains the raspberry pi and constites the brains of the operation, running this software). */
+export type ControllerTelemetry = {
   cpuTemperature: number
 }
 
 export type Telemetry = {
-  motorControllers: MotorControllerState[]
-  controller: ControllerState
+  downlow: DownLowTelemetry
+  controller: ControllerTelemetry
+  motorControllers: DriveMotorControllerTelemetry[]
+  wheels: WheelTelemetry[]
 }
 
 /** Current state of vehicle */
@@ -60,9 +86,9 @@ export type VehicleState = {
   centreAbs: Point
   /** Predicted absolute rotation of vehicle */
   rotationPredicted: number
-  /** State for each wheel */
-  wheels: WheelState[]
-  /** Target state for each wheel */
+  /** Target state for each wheel in next iteration */
+  wheelsNext: WheelState[]
+  /** Target state for each wheel based on current control input */
   wheelsTarget: WheelState[]
   /** Current actual relative pivot point */
   pivot: Coord
@@ -76,6 +102,8 @@ export type VehicleState = {
   rpmPredicted: number
   /** Current error state, if any */
   error:string|null
+  /** Telemetry from various sensors. */
+  telemetry: Telemetry
 }
 
 export const DriveMode = Enum(

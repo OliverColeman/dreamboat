@@ -6,7 +6,7 @@ import { useMeasure } from 'react-use'
 
 import Controls from './controls/Controls'
 import Visualisation from './Visualisation'
-import UpdateLoop from '../model/UpdateLoop'
+import UpdateStateLoop from '../model/UpdateStateLoop'
 import { appDimensionsState } from '../model/state'
 import { fontSize } from '../settings'
 import UpdateMotors from '../model/UpdateMotors'
@@ -67,7 +67,7 @@ function App () {
 
   return (
     <div className={classes.root} ref={ref}>
-      <UpdateLoop />
+      <UpdateStateLoop />
       <UpdateMotors />
       <Visualisation />
       <Controls />

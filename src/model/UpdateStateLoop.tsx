@@ -2,32 +2,26 @@ import { useEffect } from 'react'
 import { CallbackInterface, useRecoilCallback } from 'recoil'
 
 import { frameRate } from '../settings'
-import { driveModeState, vehicleState, control2DFamily, telemetryState } from './state'
+import { driveModeState, vehicleState, control2DFamily } from './state'
 import { Controls2D } from './types'
 import { updateVehicleState } from './reducer'
 import { getTelemetry } from '../hardware/telemetry'
 
-function UpdateLoop () {
+/**
+ * Iteratively updates the vehicle state (as stored in recoil state) `frameRate` times per second.
+ * State updated includes `vehicleState` and `telemetry`.
+ */
+function UpdateStateLoop () {
   const updateVehicleStateCallback = useRecoilCallback(updateVehicleStateWithCurrentControls)
-  const updateTelemetryStateCallback = useRecoilCallback(updateTelemetryState)
 
   useEffect(() => {
     const intervalHandle = setInterval(() => {
-      updateTelemetryStateCallback()
       updateVehicleStateCallback()
     }, 1000 / frameRate)
     return () => clearInterval(intervalHandle)
-  }, [updateTelemetryStateCallback, updateVehicleStateCallback])
+  }, [updateVehicleStateCallback])
 
   return null
-}
-
-const updateTelemetryState = ({ set }: CallbackInterface) => async () => {
-  try {
-    set(telemetryState, getTelemetry())
-  } catch (e) {
-    console.log(e)
-  }
 }
 
 const updateVehicleStateWithCurrentControls = ({ snapshot, set }: CallbackInterface) => async () => {
@@ -38,10 +32,10 @@ const updateVehicleStateWithCurrentControls = ({ snapshot, set }: CallbackInterf
       await snapshot.getPromise(control2DFamily(Controls2D.MOTION_1)),
     ]
 
-    set(vehicleState, updateVehicleState(mode, control2d))
+    set(vehicleState, updateVehicleState(mode, control2d, getTelemetry()))
   } catch (e) {
     console.log(e)
   }
 }
 
-export default UpdateLoop
+export default UpdateStateLoop

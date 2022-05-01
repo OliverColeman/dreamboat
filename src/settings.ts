@@ -11,8 +11,8 @@ export const maxRPS = 0.05 // Revolutions/second
 /** Maximum turn rate of wheels */
 export const maxWheelSteerRPS = 1 // 60 RPM
 
-/** Maximum pivot point change factor. 
- * This controls how far the desired pivot point can move, 
+/** Maximum pivot point change factor.
+ * This controls how far the desired pivot point can move,
  * relative to the current distance to the vehicle centre. */
 export const maxPivotPointDistanceChangeFactor = 0.5
 /** Maximum change in vehicle rotation speed (revolutions per second per second). */
@@ -48,6 +48,8 @@ export const wheelPositions:Array<Vec2> = [
   },
 ]
 
+export const wheelCount = wheelPositions.length
+
 export const controlVisualSize = 121
 export const fontSize = 36
 
@@ -70,12 +72,22 @@ export const joystick1 = {
 /** Threshold below which joystick inputs are considered zero. */
 export const movementMagnitudeThreshold = 0.03
 
+/** Baud rate for communication with USB devices. */
+export const usbBaudRate = 115200 // 38400
+/** Time to wait before resending GET requests for USB devices. */
+export const usbGetRetryTimeout = 500 // 38400
+/** Number of times to resend GET requests before failing for USB devices. */
+export const usbMaxGetAttempts = 3 // 38400
+
+/** Time between updating the telemetry of the downlow MCU, in ms. */
+export const downlowTelemetryUpdateInterval = 1000 / 10
+
 /** The ports of the motor controllers. */
 export const driveMotorSerialNumbers = ['1600DB368EC8', '160091E42CEB']
 /** How many motors there are per motor controller. */
 export const motorsPerController = 2
-/** Time between updating the status and stats of the motor controllers, in ms. */
-export const motorControllerStateUpdateInterval = 1000 / 10
+/** Time between updating the telemetry of the motor controllers, in ms. */
+export const motorControllerTelemetryUpdateInterval = 1000 / 10
 /** Maximum output voltage of sabertooth motor controller as proportion of input voltage. */
 export const motorControllerMaxMotorOutputRate = 0.94
 /** Maximum output current per channel of sabertooth motor controllers. */
