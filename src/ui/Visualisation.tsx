@@ -7,7 +7,7 @@ import Color from 'color'
 import { appDimensionsState, driveModeState, vehicleState } from '../model/state'
 import { makeStyles, useTheme } from '@material-ui/core'
 import { bedSize, gridSpacing, maxVehicleSpeed, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
-import { DriveMode, Coord } from '../model/types'
+import { DriveMode, Coord, VehicleState, Polar } from '../model/types'
 
 Konva.angleDeg = false
 
@@ -82,32 +82,17 @@ export default function Visualisation () {
               fill={theme.palette.primary.main}
             />
 
-            { vehicle.wheelsNext.map((wheel, idx) =>
+            { vehicle.telemetry && vehicle.telemetry.wheels.map((wheel, idx) =>
               <Group
                 key={`wheel-${idx}`}
                 {...wheelPositions[idx]}
               >
-                <Circle
-                  radius={wheelDiameter / 2}
-                  fill='black'
-                />
-                { [wheel, vehicle.wheelsTarget[idx]].map((w, i) => {
-                  let colour = colourStopped
-                  // Note speed is in mm/s.
-                  if (w.speed > 3) colour = colour.mix(colourForward, w.speed / maxVehicleSpeed)
-                  else if (w.speed < -3) colour = colour.mix(colourReverse, -w.speed / maxVehicleSpeed)
-                  if (i === 1) colour = colour.fade(0.5)
-                  return <Direction
-                    rotation={w.angle}
-                    length={wheelDiameter}
-                    colour={colour.toString()}
-                    key={`wheel-${idx}-${i}`}
-                  />
-                }) }
-
-                <Text
-                  text={'' + idx} fontSize={150} fill="white"
-                  x={-40} y={-60 - wheelDiameter * 0.8 * Math.sign(wheelPositions[idx].y)}
+                <Wheel
+                  key={idx}
+                  index={idx}
+                  actual={{ r: wheel.driveRate * 100, a: wheel.angle }}
+                  target={{ r: vehicle.wheelsTarget[idx].speed / maxVehicleSpeed, a: vehicle.wheelsTarget[idx].angle }}
+                  colourStopped={colourStopped} colourForward={colourForward} colourReverse={colourReverse}
                 />
               </Group>
             )}
@@ -125,6 +110,34 @@ export default function Visualisation () {
     </div>
   )
 }
+
+type WheelVisProps = { index: number, actual: Polar, target: Polar, colourStopped:Color, colourForward:Color, colourReverse:Color }
+const Wheel:React.FC<WheelVisProps> = ({ index, actual, target, colourStopped, colourForward, colourReverse }) => (
+  <>
+    <Circle
+      radius={wheelDiameter / 2}
+      fill='black'
+    />
+    { [actual, target].map((w, i) => {
+      let colour = colourStopped
+      // Note speed is in mm/s.
+      if (w.r > 3) colour = colour.mix(colourForward, w.r)
+      else if (w.r < -3) colour = colour.mix(colourReverse, -w.r)
+      if (i === 1) colour = colour.fade(0.5)
+      return <Direction
+        rotation={w.a}
+        length={wheelDiameter}
+        colour={colour.toString()}
+        key={i}
+      />
+    }) }
+
+    <Text
+      text={'' + index} fontSize={150} fill="white"
+      x={-40} y={-60 - wheelDiameter * 0.8 * Math.sign(wheelPositions[index].y)}
+    />
+  </>
+)
 
 type PivotProps = {pivot:Coord, label: string, colour: string}
 const Pivot:React.FC<PivotProps> = ({ pivot, label, colour }) => (<>

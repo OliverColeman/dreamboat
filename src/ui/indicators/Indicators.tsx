@@ -22,13 +22,10 @@ const useStyles = makeStyles<Theme>((theme) =>
     }),
     speedrpm: () => ({
       display: 'inline-block',
-      width: 80,
+      width: 120,
       marginRight: 16,
     }),
-    connected: () => ({
-      // color: theme.palette.primary.main,
-    }),
-    disconnected: () => ({
+    error: () => ({
       color: theme.palette.error.main,
     }),
     fieldRow: () => ({
@@ -57,41 +54,52 @@ const Indicators = () => {
       </div>
     </div>
 
-    <strong>Motors</strong>
-    {telemetry !== null && telemetry.motorControllers.map((mc, mci) =>
-      <div
-        key={`mc${mci}`}
-        className={mc.connected && !mc.error ? classes.connected : classes.disconnected}
-      >
-        {mc.error
-          ? <div>{mc.error}</div> // If an error occurred with the motor controller, display that instead of the wheel telemetry.
-          : telemetry.wheels.slice(mci * 2, mci * 2 + 2).map((wheel, wi) =>
-              <div className={classes.fieldRow} key={`mc${mci}-m${wi}`}>
-                <div className={classes.field}>
-                  {Math.round(wheel.driveRate * 100)}%
-                </div>
-                <div className={classes.field}>
-                  {wheel.driveCurrent.toFixed(1)}A
-                </div>
-                <div className={classes.field}>
-                  {wheel.driveOutputTemperature}&deg;C
-                </div>
-
-                <div className={classes.field}>
-                  {Math.round(wheel.steeringRate * 100)}%
-                </div>
-                <div className={classes.field}>
-                  {wheel.steeringCurrent.toFixed(1)}A
-                </div>
+    {!telemetry
+      ? <strong>Initialising</strong>
+      : <>
+        { telemetry.motorControllers.map((mc, mci) => (
+          (!mc.connected || mc.error)
+            ? <div key={`mc${mci}`} className={classes.error}>
+                {`Drive motor controller ${mci}: ${!mc.connected ? 'disconnected; ' : ''} ${mc.error}`}
               </div>
-          )
+            : null
+        )) }
+
+        { (!telemetry.downlow.isConnected || telemetry.downlow.error)
+            && <div className={classes.error}>
+                {`Steering controller: ${!telemetry.downlow.isConnected ? 'disconnected; ' : ''} ${telemetry.downlow.error}`}
+              </div>
         }
-      </div>
-    )}
 
-    <div>Battery: {telemetry.motorControllers?.[0]?.batteryVoltage}V</div>
+        <strong>Wheels</strong>
+        { telemetry.wheels.map((wheel, wi) =>
+          <div className={classes.fieldRow} key={`w${wi}`}>
+            <div className={classes.field}>
+              {(wheel.driveRate * 100).toFixed(0)}%
+            </div>
+            <div className={classes.field}>
+              {wheel.driveCurrent.toFixed(1)}A
+            </div>
+            <div className={classes.field}>
+              {wheel.driveOutputTemperature}&deg;C
+            </div>
 
-    <div>CPU temp: {Math.round(telemetry.controller.cpuTemperature)}&deg;C</div>
+            <div className={classes.field}>
+              {(wheel.steeringRate * 100).toFixed(0)}%
+            </div>
+            <div className={classes.field}>
+              {wheel.steeringCurrent.toFixed(1)}A
+            </div>
+
+            { !wheel.ready && <div>homing...</div> }
+          </div>
+        ) }
+
+        <div>Battery: {telemetry.motorControllers?.[0]?.batteryVoltage}V</div>
+
+        <div>CPU temp: {Math.round(telemetry.controller.cpuTemperature)}&deg;C</div>
+      </>
+    }
   </div>
 }
 
