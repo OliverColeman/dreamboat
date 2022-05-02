@@ -48,7 +48,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       const PIVOT_RADIUS_MAX = 100000000
 
       // Polar coordinates for the pivot point (point to be rotated around).
-      let pivotTargetPolar:Polar = {
+      const pivotTargetPolar:Polar = {
         a: 0, // determined by control method.
         r:
           (mode === DriveMode.DRIVE_MY_CAR ? DRIVE_MY_CAR_TURN_RATE_FACTOR : delta)
@@ -102,25 +102,25 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
 
       rotation = constrainRange(rotation, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
 
-      // Ensure target pivot point is not too far from current pivot point.
-      // This ensures a non-jerky ride.
-      const pivotTargetPoint = getPointFromPolar(pivotTargetPolar)
-      const pivotTargetDistanceDelta = pointDistance(pivotTargetPoint, currentPivot)
-      const allowedPivotTargetDistanceDelta = currentPivot.r * maxPivotPointDistanceChangeFactor
-      if (pivotTargetDistanceDelta > allowedPivotTargetDistanceDelta) {
-        pivotTargetPolar = getPolarFromPoint(lerpPoints(
-          currentPivot, pivotTargetPoint,
-          allowedPivotTargetDistanceDelta / pivotTargetDistanceDelta
-        ))
-      }
+      // // Ensure target pivot point is not too far from current pivot point.
+      // // This ensures a non-jerky ride.
+      // const pivotTargetPoint = getPointFromPolar(pivotTargetPolar)
+      // const pivotTargetDistanceDelta = pointDistance(pivotTargetPoint, currentPivot)
+      // const allowedPivotTargetDistanceDelta = currentPivot.r * maxPivotPointDistanceChangeFactor
+      // if (pivotTargetDistanceDelta > allowedPivotTargetDistanceDelta) {
+      //   pivotTargetPolar = getPolarFromPoint(lerpPoints(
+      //     currentPivot, pivotTargetPoint,
+      //     allowedPivotTargetDistanceDelta / pivotTargetDistanceDelta
+      //   ))
+      // }
 
-      // Ensure change in (rotation) speed is not too fast. This ensures a non-jerky ride.
-      // Note: this has a direct relationship to the vehicle speed, as vehicle motion is
-      // always modelled as pivoting around a pivot point.
-      const rotationDelta = Math.abs(currentRotationPredicted - rotation)
-      if (rotationDelta > maxRotationDeltaPerFrame) {
-        rotation *= maxRotationDeltaPerFrame / rotationDelta
-      }
+      // // Ensure change in (rotation) speed is not too fast. This ensures a non-jerky ride.
+      // // Note: this has a direct relationship to the vehicle speed, as vehicle motion is
+      // // always modelled as pivoting around a pivot point.
+      // const rotationDelta = Math.abs(currentRotationPredicted - rotation)
+      // if (rotationDelta > maxRotationDeltaPerFrame) {
+      //   rotation *= maxRotationDeltaPerFrame / rotationDelta
+      // }
 
       pivotTargetPolar.a = normaliseAngle(pivotTargetPolar.a)
 
