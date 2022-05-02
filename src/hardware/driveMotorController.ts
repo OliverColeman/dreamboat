@@ -3,7 +3,7 @@ import _ from 'lodash'
 import { SabertoothUSB, SingleChannel, listSabertoothDevices } from 'sabertooth-usb'
 
 import { DriveMotorControllerTelemetry, VehicleState, WheelDriveTelemetry } from '../model/types'
-import { driveMotorSerialNumbers, maxVehicleSpeed, motorControllerTelemetryUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts } from '../settings'
+import { driveMotorSerialNumbers, maxVehicleSpeed, motorControllerTelemetryUpdateInterval, motorsPerController, motorControllerMaxMotorOutputRate, motorControllerMaxCurrentPerMotor, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts, wheelCount } from '../settings'
 
 const motorController:Array<SabertoothUSB> = [null, null]
 
@@ -20,6 +20,7 @@ listSabertoothDevices().then(devices =>
     )
 
     motorController[mcIndex].setCurrentLimit('*', motorControllerMaxCurrentPerMotor)
+    motorController[mcIndex].setRamping('*', 2000)
   })
 )
 
@@ -31,7 +32,7 @@ const controllerTelemetry:DriveMotorControllerTelemetry[] = motorController.map(
   error: null,
 }))
 
-const motorTelemetry:WheelDriveTelemetry[] = _.range(motorsPerController).map(() => ({ driveRate: 0, driveCurrent: 0, driveOutputTemperature: 0 }))
+const motorTelemetry:WheelDriveTelemetry[] = _.range(wheelCount).map(() => ({ driveRate: 0, driveCurrent: 0, driveOutputTemperature: 0 }))
 
 const mcGood = (telemetry:DriveMotorControllerTelemetry) => telemetry.connected && !telemetry.error
 
