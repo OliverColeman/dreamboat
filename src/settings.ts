@@ -51,7 +51,7 @@ export const wheelPositions:Array<Vec2> = [
 export const wheelCount = wheelPositions.length
 
 export const controlVisualSize = 121
-export const fontSize = 36
+export const fontSize = 30
 
 export const controlType:ControlType = 'joystick'
 
@@ -73,11 +73,13 @@ export const joystick1 = {
 export const movementMagnitudeThreshold = 0.03
 
 /** Baud rate for communication with USB devices. */
-export const usbBaudRate = 115200 // 38400
+export const usbBaudRate = 38400 // 115200
 /** Time to wait before resending GET requests for USB devices. */
 export const usbGetRetryTimeout = 500 // 38400
 /** Number of times to resend GET requests before failing for USB devices. */
 export const usbMaxGetAttempts = 3 // 38400
+
+export const downlowMcuSerialNumber = '11692050'
 
 /** Time between updating the telemetry of the downlow MCU, in ms. */
 export const downlowTelemetryUpdateInterval = 1000 / 10

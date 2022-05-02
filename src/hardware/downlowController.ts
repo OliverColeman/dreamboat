@@ -3,8 +3,8 @@
 import _ from 'lodash'
 import SerialPort from 'serialport'
 import { DownLowTelemetry, DownlowWheelTelemetry } from '../model/types'
-import { downlowTelemetryUpdateInterval, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts, wheelCount } from '../settings'
-import { normaliseAngle, normaliseValueToRange } from '../util'
+import { downlowMcuSerialNumber, downlowTelemetryUpdateInterval, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts, wheelCount } from '../settings'
+import { normaliseAngle, normaliseValueToRange, rad2Deg } from '../util'
 let SerialPortClass:typeof SerialPort
 try {
   // In electron window.require should be used.
@@ -28,8 +28,11 @@ class DownLow {
 
   /** Attempt to connect to the MCU. Retries connecting if the connection fails. */
   private async connect () {
-    const devices:SerialPort.PortInfo[] = (await SerialPortClass.list()).filter(port => port.pnpId?.startsWith('usb-Dimension_Engineering_Sabertooth'))
-    if (devices.length === 0) throw Error('Could not find downlow MCU')
+    const devices:SerialPort.PortInfo[] = (await SerialPortClass.list()).filter(port => port.serialNumber === downlowMcuSerialNumber)
+    if (devices.length === 0) {
+      this.lastError = Error('Could not find downlow MCU')
+      return
+    }
 
     this.serial = new SerialPortClass(devices[0].path, {
       baudRate: usbBaudRate,
@@ -39,7 +42,7 @@ class DownLow {
     // eslint-disable-next-line no-undef
     let connectIntervalHandle:NodeJS.Timeout
 
-    const connect = () => {
+    const connectSerial = () => {
       // Attempt to connect once per second.
       connectIntervalHandle = setInterval(
         () => this.serial.open(),
@@ -62,14 +65,14 @@ class DownLow {
 
     this.serial.on('close', (err) => {
       this.lastError = err
-      connect()
+      connectSerial()
     })
 
-    connect()
+    connectSerial()
   }
 
   /** Returns true iff the USB serial connection is open and working. */
-  isConnected = () => this.serial.isOpen
+  isConnected = () => !!this.serial && this.serial.isOpen
 
   /** Get the last error that occurred in the connection. */
   getLastError = () => this.lastError
@@ -126,7 +129,7 @@ class DownLow {
           wheels[wi].angle = normaliseAngle(unitAngle * 2 * Math.PI)
 
           // 1 byte to represent rate the steering motor is being driven at.
-          wheels[wi].steeringRate = (data[dataIdx++] - 127) / 127
+          wheels[wi].steeringRate = (data[dataIdx++] - 127.0) / 127.0
 
           // 1 byte to represent time wheel has been stuck, in tenths of a second.
           wheels[wi].stuckTime = data[dataIdx++] * 0.1
@@ -152,11 +155,12 @@ class DownLow {
     })
   }
 
-  /** Send new wheel angles to the downlow MCU. */
+  /** Send new wheel angles to the downlow MCU. Angles in radians, range [-pi, pi]. */
   setWheelAngles (wheelAngles:number[]) {
+    if (!this.isConnected()) return
     const data = [Command.Set]
     for (let wi = 0; wi < wheelCount; wi++) {
-      const normalisedTo360 = normaliseValueToRange(0, wheelAngles[wi], 360)
+      const normalisedTo360 = normaliseValueToRange(0, rad2Deg(wheelAngles[wi]), 360)
       const shortVal = Math.round(normalisedTo360 / 360 * 65535)
       data.push((shortVal >> 8) & 0xff)
       data.push((shortVal >> 0) & 0xff)
@@ -188,15 +192,17 @@ let wheelTelemetry:DownlowWheelTelemetry[] = _.range(wheelCount).map(() => ({
 export const getDownlowWheelTelemetry = () => _.cloneDeep(wheelTelemetry)
 
 export const getDownlowTelemetry = ():DownLowTelemetry => ({
-  isConnected: downlowController.isConnected(),
-  error: '' + downlowController.getLastError(),
+  isConnected: downlowController ? downlowController.isConnected() : false,
+  error: downlowController
+    ? (downlowController.getLastError() ? '' + downlowController.getLastError() : null)
+    : 'Not initialised',
 })
 
 // Periodically updates the internal mutable telemetry.
 const updateTelemetry = async () => {
   const updateStarted = Date.now()
 
-  if (downlowController.isConnected()) {
+  if (downlowController && downlowController.isConnected()) {
     try {
       wheelTelemetry = await downlowController.get()
     } catch (err) { }
