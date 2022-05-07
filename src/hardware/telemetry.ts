@@ -1,8 +1,6 @@
-import { Telemetry, WheelTelemetry } from '../model/types'
-import { getDriveMotorControllerTelemetry, getDriveMotorTelemetry } from './driveMotorController'
+import { Telemetry } from '../model/types'
 import fsType from 'fs'
-import { getDownlowWheelTelemetry, getDownlowTelemetry } from './downlowController'
-import { wheelCount } from '../settings'
+import { getDownlowTelemetry } from './downlowController'
 import _ from 'lodash'
 const fs = window.require('fs') as typeof fsType
 
@@ -14,19 +12,10 @@ const updateCpuTemp = () => {
 updateCpuTemp()
 
 export function getTelemetry ():Telemetry {
-  const driveMotorTelemetry = getDriveMotorTelemetry()
-  const steeringTelemetry = getDownlowWheelTelemetry()
-  const wheels:WheelTelemetry[] = _.range(wheelCount).map(wi => ({
-    ...driveMotorTelemetry[wi],
-    ...steeringTelemetry[wi],
-  }))
-
   return {
-    motorControllers: getDriveMotorControllerTelemetry(),
     downlow: getDownlowTelemetry(),
     controller: {
       cpuTemperature,
     },
-    wheels,
   }
 }

@@ -24,47 +24,38 @@ export type WheelState = {
   flipped: boolean
 }
 
-/** Information about a drive motor. Provided by the drive motor controllers. */
-export type WheelDriveTelemetry = {
-  /** Rate the drive motor is being driven at, in range [-1, 1]. */
-  driveRate: number
-  /** Temperature of output transistors on drive motor controller in deg. C. */
-  driveOutputTemperature: number
-}
-
-/** Information about wheel steering. Provided by the downlow MCU. */
-export type DownlowWheelTelemetry = {
+/** Information about wheel state. Provided by the downlow MCU. */
+export type WheelTelemetry = {
   /** Indicates ready status of the wheel - a wheel is ready when it knows its position. */
   ready: boolean
   /** Current wheel angle, in range [-pi, pi]. */
   angle: number
   /** Rate the steering motor is being driven at, in range [-1, 1]. */
   steeringRate: number
+  /** Rate the drive motor is being driven at, in range [-1, 1]. */
+  driveRate: number
   /** Number of seconds a wheel seems to have been stuck for -
    * a wheel is stuck when it isn't turning sufficiently fast enough towards the target angle. */
   stuckTime: number
+  /** Temperature of output transistors on drive motor controller in deg. C. */
+  driveOutputTemperature: number
   /** Current being drawn by steering motor in Amps. */
   steeringCurrent: number
   /** Current being drawn by drive motor in Amps. */
-  driveCurrent: number // Located in WheelSteeringTelemetry because the data is collected by the downlow MCU.
+  driveCurrent: number
+  /** Flag to indicating if a fault has occurred with the steering motor controller channel for this wheel. */
+  steeringMotorControllerFault: boolean
 
-}
-
-export type WheelTelemetry = WheelDriveTelemetry & DownlowWheelTelemetry
-
-/** Information about the drive motors and controllers. */
-export type DriveMotorControllerTelemetry = {
-  /** Flag indicating successful connection to motor controller. */
-  connected: boolean
-  /** Battery voltage reported by motor controller. */
-  batteryVoltage: number
-  error: string
 }
 
 /** Information about the microcontroller under the vehicle (which controls steering motors and mayne other things). */
 export type DownLowTelemetry = {
   isConnected: boolean
   error: string
+  /** Battery voltage. */
+  batteryVoltage: number
+  /** Telemetry for each wheel. */
+  wheels: WheelTelemetry[]
 }
 
 /** Information about the handheld controller
@@ -76,8 +67,6 @@ export type ControllerTelemetry = {
 export type Telemetry = {
   downlow: DownLowTelemetry
   controller: ControllerTelemetry
-  motorControllers: DriveMotorControllerTelemetry[]
-  wheels: WheelTelemetry[]
 }
 
 /** Current state of vehicle */

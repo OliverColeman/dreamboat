@@ -57,22 +57,14 @@ const Indicators = () => {
     {!telemetry
       ? <strong>Initialising</strong>
       : <>
-        { telemetry.motorControllers.map((mc, mci) => (
-          (!mc.connected || mc.error)
-            ? <div key={`mc${mci}`} className={classes.error}>
-                {`Drive motor controller ${mci}: ${!mc.connected ? 'disconnected; ' : ''} ${mc.error}`}
-              </div>
-            : null
-        )) }
-
         { (!telemetry.downlow.isConnected || telemetry.downlow.error)
             && <div className={classes.error}>
-                {`Steering controller: ${!telemetry.downlow.isConnected ? 'disconnected; ' : ''} ${telemetry.downlow.error}`}
+                {`Downlow controller: ${!telemetry.downlow.isConnected ? 'disconnected; ' : ''} ${telemetry.downlow.error}`}
               </div>
         }
 
         <strong>Wheels</strong>
-        { telemetry.wheels.map((wheel, wi) =>
+        { telemetry.downlow.wheels.map((wheel, wi) =>
           <div className={classes.fieldRow} key={`w${wi}`}>
             <div className={classes.field}>
               {(wheel.driveRate * 100).toFixed(0)}%
@@ -95,7 +87,7 @@ const Indicators = () => {
           </div>
         ) }
 
-        <div>Battery: {telemetry.motorControllers?.[0]?.batteryVoltage}V</div>
+        <div>Battery: {telemetry.downlow?.batteryVoltage}V</div>
 
         <div>CPU temp: {Math.round(telemetry.controller.cpuTemperature)}&deg;C</div>
       </>

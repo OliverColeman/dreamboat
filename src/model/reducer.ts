@@ -132,7 +132,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
         rotationAchievable, // Achievable amount of rotation around pivotAchievable this time step.
         achievableWheelState, // Actual wheel angles we're aiming to achieve this time step.
         targetWheelState, // The current target wheel state (if no restrictions on wheel turn rate).
-      } = updateWheels(vehicle, pivotTarget, rotation, telemetry.wheels)
+      } = updateWheels(vehicle, pivotTarget, rotation, telemetry.downlow.wheels)
 
       // Cartesian coordinates for the pivot point.
       // Absolute to vehicle rotation, relative to vehicle position.
@@ -156,7 +156,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       vehicle.speedPredicted = getSpeedFromAngularDisplacement(pivotAchievable, { x: 0, y: 0 }, rotationAchievable)
       vehicle.rpmPredicted = rotationAchievable * frameRate
 
-      // Update absolute state variables, only used for simulation.
+      // Update absolute state variables, only used for simulation/visualisation.
       vehicle.centreAbs.x += deltaVecSim.x
       vehicle.centreAbs.y += deltaVecSim.y
       vehicle.pivotAbs.x = xAbs + pivotAbs.x
