@@ -28,11 +28,8 @@ const useStyles = makeStyles<Theme>((theme) =>
     error: () => ({
       color: theme.palette.error.main,
     }),
-    fieldRow: () => ({
-      display: 'flex',
-    }),
     field: () => ({
-      width: 80,
+      width: '100px',
     }),
   })
 )
@@ -64,28 +61,32 @@ const Indicators = () => {
         }
 
         <strong>Wheels</strong>
+        <table><tbody>
+        <tr>
+          <td className={classes.field} colSpan={2}>Drive</td>
+          <td className={classes.field} colSpan={2}>Steer</td>
+          <td className={classes.field}>Status</td>
+        </tr>
         { telemetry.downlow.wheels.map((wheel, wi) =>
-          <div className={classes.fieldRow} key={`w${wi}`}>
-            <div className={classes.field}>
+          <tr key={`w${wi}`}>
+            <td className={classes.field}>
               {(wheel.driveRate * 100).toFixed(0)}%
-            </div>
-            <div className={classes.field}>
+            </td>
+            <td className={classes.field}>
               {wheel.driveCurrent.toFixed(1)}A
-            </div>
-            <div className={classes.field}>
-              {wheel.driveOutputTemperature}&deg;C
-            </div>
+            </td>
 
-            <div className={classes.field}>
+            <td className={classes.field}>
               {(wheel.steeringRate * 100).toFixed(0)}%
-            </div>
-            <div className={classes.field}>
+            </td>
+            <td className={classes.field}>
               {wheel.steeringCurrent.toFixed(1)}A
-            </div>
+            </td>
 
-            { !wheel.ready && <div>homing...</div> }
-          </div>
+            { <td>{wheel.steeringMotorControllerFault ? 'fault' : (wheel.stuckTime > 0.5 ? 'stuck' : (!wheel.ready ? 'homing' : 'ready'))}</td> }
+          </tr>
         ) }
+        </tbody></table>
 
         <div>Battery: {telemetry.downlow?.batteryVoltage}V</div>
 

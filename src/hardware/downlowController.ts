@@ -24,7 +24,7 @@ const getWheelTelemetryTemplate = ():WheelTelemetry => ({
   driveRate: 0,
   steeringRate: 0,
   stuckTime: 0,
-  driveOutputTemperature: 0,
+  // driveOutputTemperature: 0,
   steeringCurrent: 0,
   driveCurrent: 0,
   steeringMotorControllerFault: false,
@@ -131,6 +131,7 @@ class DownLow {
           // 2 bytes to represent current angle of wheel, in range [0-65535].
           const shortVal = data[dataIdx++] << 8 | data[dataIdx++]
           const unitAngle = shortVal / 65535.0
+
           wheels[wi].angle = normaliseAngle(unitAngle * 2 * Math.PI)
 
           // 1 byte to represent rate the drive motor is being driven at.
@@ -143,7 +144,7 @@ class DownLow {
           wheels[wi].stuckTime = data[dataIdx++] * 0.1
 
           // 1 byte to represent temperature of the drive motor controller channel for the wheel, in degrees C.
-          wheels[wi].driveOutputTemperature = data[dataIdx++]
+          // wheels[wi].driveOutputTemperature = data[dataIdx++]
 
           // 1 byte to represent the current being drawn by the steering motor, in halves of an amp.
           wheels[wi].steeringCurrent = (data[dataIdx++] - 127) * 0.5

@@ -82,7 +82,7 @@ export default function Visualisation () {
               fill={theme.palette.primary.main}
             />
 
-            { vehicle.telemetry && vehicle.telemetry.wheels.map((wheel, idx) =>
+            { vehicle.telemetry && vehicle.telemetry.downlow.wheels.map((wheel, idx) =>
               <Group
                 key={`wheel-${idx}`}
                 {...wheelPositions[idx]}

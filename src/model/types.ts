@@ -37,8 +37,8 @@ export type WheelTelemetry = {
   /** Number of seconds a wheel seems to have been stuck for -
    * a wheel is stuck when it isn't turning sufficiently fast enough towards the target angle. */
   stuckTime: number
-  /** Temperature of output transistors on drive motor controller in deg. C. */
-  driveOutputTemperature: number
+  // /** Temperature of output transistors on drive motor controller in deg. C. */
+  // driveOutputTemperature: number
   /** Current being drawn by steering motor in Amps. */
   steeringCurrent: number
   /** Current being drawn by drive motor in Amps. */

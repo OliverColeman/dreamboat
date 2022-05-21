@@ -82,7 +82,7 @@ export const usbMaxGetAttempts = 3 // 38400
 export const downlowMcuSerialNumber = '11692050'
 
 /** Time between updating the telemetry of the downlow MCU, in ms. */
-export const downlowTelemetryUpdateInterval = 1000 / 10
+export const downlowTelemetryUpdateInterval = 1000 / 20
 
 /** The ports of the motor controllers. */
 export const driveMotorSerialNumbers = ['1600DB368EC8', '160091E42CEB']
