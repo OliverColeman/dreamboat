@@ -14,8 +14,15 @@ Other resources:
 ## Setup
 
 1. Install requirements (tested on Ubuntu 22.04):  
-   * [Node.js v16](https://nodejs.org)
-   * ```
+   * [Node.js v16](https://nodejs.org):  
+     ```
+     curl -sL https://deb.nodesource.com/setup_16.x -o nodesource_setup.sh
+     sudo bash nodesource_setup.sh
+     sudo apt install nodejs
+     ```
+     
+   * Packages for building electron modules:  
+     ```
      sudo apt-get install build-essential clang libdbus-1-dev libgtk-3-dev \
                          libnotify-dev libasound2-dev libcap-dev \
                          libcups2-dev libxtst-dev \
