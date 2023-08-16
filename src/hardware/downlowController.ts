@@ -160,10 +160,13 @@ class DownLow {
         }
         dataIdx++
 
+        const emergencyStopTriggered = !!(data[dataIdx] & 0x01)
+        dataIdx++
+
         // 2 bytes to represent battery voltage in tenths of a volt.
         const batteryVoltage = (data[dataIdx++] << 8 | data[dataIdx++]) / 10
 
-        resolve({ batteryVoltage, wheels })
+        resolve({ emergencyStopTriggered, batteryVoltage, wheels })
       }
 
       this.serial.on('data', dataListener)
@@ -205,6 +208,7 @@ export const downlowController = new DownLow()
 const downlowTelemetry:DownLowTelemetry = {
   isConnected: false,
   error: null,
+  emergencyStopTriggered: false,
   batteryVoltage: 0,
   wheels: _.range(wheelCount).map(getWheelTelemetryTemplate),
 }
@@ -226,6 +230,7 @@ const updateTelemetry = async () => {
       const telemetry = await downlowController.get()
       downlowTelemetry.wheels = telemetry.wheels
       downlowTelemetry.batteryVoltage = telemetry.batteryVoltage
+      downlowTelemetry.emergencyStopTriggered = telemetry.emergencyStopTriggered
     } catch (err) { }
   }
 

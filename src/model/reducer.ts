@@ -2,14 +2,15 @@ import produce from 'immer'
 import Flatten from '@flatten-js/core'
 import _ from 'lodash'
 
-import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, maxPivotPointDistanceChangeFactor, maxRotationDelta } from '../settings'
-import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, rad2Deg, normaliseAngle, vecLen, getPointFromPolar, pointDistance, lerpPoints, getPolarFromPoint } from '../util'
+import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, maxRotationDelta } from '../settings'
+import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, normaliseAngle, vecLen } from '../util'
 import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2, Telemetry, WheelTelemetry } from './types'
 
 const pi = Math.PI
-const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
 const maxDeltaPerFrame = maxVehicleSpeed / frameRate
 const maxRotateAnglePerFrame = (maxRPS / frameRate) * pi * 2
+/** Maximum amount a wheel can turn per frame. */
+export const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
 const maxRotationDeltaPerFrame = maxRotationDelta / frameRate
 
 /**
@@ -25,7 +26,19 @@ const maxRotationDeltaPerFrame = maxRotationDelta / frameRate
  */
 export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetry:Telemetry) =>
   produce((vehicle: VehicleState) => {
-    if (control2d.some(c => c.r > movementMagnitudeThreshold)) {
+    if (vehicle.brakeEnabled) {
+      const wheelBrakePositions = vehicle.wheelsNext.map((w, wi) => ({
+        angle: (wi === 0 || wi === 3 ? -1 : 1) * pi / 4,
+        flipped: false,
+        speed: 0,
+      }))
+      vehicle.wheelsNext = wheelBrakePositions
+      vehicle.wheelsTarget = wheelBrakePositions
+      vehicle.pivotTarget = { x: 0, y: 0, r: 0, a: 0 }
+      vehicle.pivot = { x: 0, y: 0, r: 0, a: 0 }
+      vehicle.speedPredicted = 0
+      vehicle.rpmPredicted = 0
+    } else if (control2d.some(c => c.r > movementMagnitudeThreshold)) {
       const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted: currentRotationPredicted, pivot: currentPivot } = vehicle
 
       // For DAY_TRIPPER and HELTER_SKELTER mode,
@@ -176,7 +189,7 @@ type NewWheelStateInfo = {
   /** The pivot point that is achievable in the next time step, given wheel turn speed limitations. */
   pivotAchievable: Coord
   /** The amount of rotation that is achievable in the next time (limited by maximum wheel speed). */
-  rotationAchievable
+  rotationAchievable: number
   /** The wheel state that is achievable in the next time step, given wheel turn speed limitations. */
   achievableWheelState: WheelState[]
   /** The target wheel state, without considering wheel turn speed limitations. */
@@ -190,9 +203,6 @@ type NewWheelStateInfo = {
  * @param targetRotationDelta The amount the vehicle is to rotate around the target pivot point, in radians. Used to determine wheel speeds.
  */
 function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotationDelta:number, wheelTelemetry:WheelTelemetry[]): NewWheelStateInfo {
-  // console.log('==============')
-  console.log('maxAllowedAngleDelta', rad2Deg(maxWheelSteerDeltaPerFrame))
-
   const { wheelsNext: wheels, pivot: currentPivot } = vehicleState
 
   // Determine closest achievable pivot point to desired from current.
@@ -212,10 +222,10 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
       targetWheelState = achievableWheelState
     }
 
-    const wheelAngleDeltas = achievableWheelAngles.map((ta, i) => normaliseAngle(ta - wheelTelemetry[i].angle))
+    const achieveableVsActualAngleDeltas = achievableWheelAngles.map((achievableAngle, i) => normaliseAngle(achievableAngle - wheelTelemetry[i].angle))
 
     // Determine which wheel would have to turn the most to achieve the target pivot point.
-    const indexOfWheelTurningTheMost = indexOfMaximum(wheelAngleDeltas.map(Math.abs))
+    const indexOfWheelTurningTheMost = indexOfMaximum(achieveableVsActualAngleDeltas.map(Math.abs))
 
     // console.log('    achievableWheelAngles', achievableWheelAngles.map(d => rad2Deg(d).toFixed(1)))
     // console.log('    pivotAchievable:', pivotAchievable.x.toFixed(1), pivotAchievable.y.toFixed(1))
@@ -225,20 +235,34 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
     // If found a pivot point (either the given target or an intermediate between current and target)
     // where wheels do not have to turn more than they can during this time step,
     // return the calculated new target wheel states for the new (possibly intermediate) target pivot point.
-    if (Math.abs(wheelAngleDeltas[indexOfWheelTurningTheMost]) <= maxWheelSteerDeltaPerFrame * 1.01) {
+    if (Math.abs(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) <= maxWheelSteerDeltaPerFrame * 1.01) {
       // console.log('    found valid solution')
 
       let rotationAchievable = targetRotationDelta
+      let speedReductionFactor = 1
+
+      // If any achievable wheel angles are too far from the target wheel angle, slow or stop driving.
+      const achieveableVsTargetAngleDeltas = achievableWheelAngles.map((achievableAngle, i) => Math.abs(normaliseAngle(achievableAngle - targetWheelState[i].angle)))
+      const maxAngleDiff = _.max(achieveableVsTargetAngleDeltas)
+      if (maxAngleDiff > 0) {
+        speedReductionFactor
+          = maxAngleDiff >= maxWheelSteerDeltaPerFrame
+            ? 0
+            : 1 - maxAngleDiff / maxWheelSteerDeltaPerFrame
+      }
 
       // If any wheels are set to go faster than possible (can happen for outside wheels when turning),
       // scale speed back to achievable amount.
       const maxWheelSpeed = _.max(achievableWheelState.map(ws => Math.abs(ws.speed)))
       if (maxWheelSpeed > maxVehicleSpeed) {
-        const scaleFactor = maxVehicleSpeed / maxWheelSpeed
+        speedReductionFactor = Math.min(speedReductionFactor, maxVehicleSpeed / maxWheelSpeed)
+      }
+
+      if (speedReductionFactor < 1) {
         for (const ws of achievableWheelState) {
-          ws.speed *= scaleFactor
+          ws.speed *= speedReductionFactor
         }
-        rotationAchievable = targetRotationDelta * scaleFactor
+        rotationAchievable *= speedReductionFactor
       }
 
       return {
@@ -265,7 +289,7 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
     // console.log('    currentPivot', currentPivot.x.toFixed(1), currentPivot.y.toFixed(1))
     // console.log('    targetPivot', targetPivot.x.toFixed(1), targetPivot.y.toFixed(1))
 
-    Math.abs(wheelAngleDeltas[indexOfWheelTurningTheMost]) >= Math.PI - maxWheelSteerDeltaPerFrame && console.log('go other way')
+    Math.abs(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) >= Math.PI - maxWheelSteerDeltaPerFrame && console.log('go other way')
 
     // For the wheel that had to turn the most, get the line perpendicular to it for the angle
     // that it can achieve this time step.
@@ -273,9 +297,9 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
       = normaliseAngle(
         wheelTelemetry[indexOfWheelTurningTheMost].angle + Math.PI / 2 // Normal to current orientation
         + maxWheelSteerDeltaPerFrame // Plus the amount it can turn this time step
-        * Math.sign(wheelAngleDeltas[indexOfWheelTurningTheMost]) // In the direction it needs to turn
+        * Math.sign(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) // In the direction it needs to turn
         // Flipped 180 if that would be closer to the target
-        * (Math.abs(wheelAngleDeltas[indexOfWheelTurningTheMost]) >= Math.PI - maxWheelSteerDeltaPerFrame ? -1 : 1)
+        * (Math.abs(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) >= Math.PI - maxWheelSteerDeltaPerFrame ? -1 : 1)
       )
     const achievablePerpendicularLineForWheelTurningTheMost = new Flatten.Line(
       new Flatten.Point(wheelPositions[indexOfWheelTurningTheMost].x, wheelPositions[indexOfWheelTurningTheMost].y),

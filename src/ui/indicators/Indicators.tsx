@@ -6,33 +6,39 @@ import { vehicleState } from '../../model/state'
 import { fontSize } from '../../settings'
 import { mmPerS2kmPerHr, rad2Deg } from '../../util'
 
-const useStyles = makeStyles<Theme>((theme) =>
-  ({
-    root: () => ({
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      zIndex: 10,
-      fontSize: '16px',
-      width: 300,
-      overflowX: 'hidden',
-    }),
-    speedrpmroot: () => ({
-      fontSize,
-    }),
-    speedrpm: () => ({
-      display: 'inline-block',
-      width: 120,
-      marginRight: 16,
-    }),
-    error: () => ({
-      color: theme.palette.error.main,
-    }),
-    field: () => ({
-      width: '100px',
-    }),
-  })
-)
+const useStyles = makeStyles<Theme>((theme) => ({
+  root: () => ({
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    zIndex: 10,
+    fontSize: '16px',
+    width: 300,
+    overflowX: 'hidden',
+  }),
+  speedrpmroot: () => ({
+    fontSize,
+  }),
+  speedrpm: () => ({
+    display: 'inline-block',
+    width: 120,
+    marginRight: 16,
+  }),
+  error: () => ({
+    color: theme.palette.error.main,
+  }),
+  fieldNumeric: () => ({
+    minWidth: '50px',
+    maxWidth: '50px',
+    textAlign: 'right',
+  }),
+  fieldText: () => ({
+    minWidth: '70px',
+    maxWidth: '70px',
+    textAlign: 'left',
+    paddingLeft: '20px',
+  }),
+}))
 
 const Indicators = () => {
   const vehicle = useRecoilValue(vehicleState)
@@ -60,30 +66,31 @@ const Indicators = () => {
               </div>
         }
 
-        <strong>Wheels</strong>
-        <table><tbody>
+        <table style={ { marginLeft: '-5px' } }><tbody>
         <tr>
-          <td className={classes.field} colSpan={2}>Drive</td>
-          <td className={classes.field} colSpan={2}>Steer</td>
-          <td className={classes.field}>Status</td>
+          <th style={ { textAlign: 'center' } } colSpan={2}>Drive</th>
+          <th style={ { textAlign: 'center' } } colSpan={2}>Steer</th>
+          <th className={classes.fieldText}>Status</th>
         </tr>
         { telemetry.downlow.wheels.map((wheel, wi) =>
           <tr key={`w${wi}`}>
-            <td className={classes.field}>
+            <td className={classes.fieldNumeric}>
               {(wheel.driveRate * 100).toFixed(0)}%
             </td>
-            <td className={classes.field}>
+            <td className={classes.fieldNumeric}>
               {wheel.driveCurrent.toFixed(1)}A
             </td>
 
-            <td className={classes.field}>
+            <td className={classes.fieldNumeric}>
               {(wheel.steeringRate * 100).toFixed(0)}%
             </td>
-            <td className={classes.field}>
+            <td className={classes.fieldNumeric}>
               {wheel.steeringCurrent.toFixed(1)}A
             </td>
 
-            { <td>{wheel.steeringMotorControllerFault ? 'fault' : (wheel.stuckTime > 0.5 ? 'stuck' : (!wheel.ready ? 'homing' : 'ready'))}</td> }
+            <td className={classes.fieldText}>
+              {wheel.steeringMotorControllerFault ? 'fault' : (wheel.stuckTime > 0.5 ? 'stuck' : (!wheel.ready ? 'homing' : 'ready'))}
+            </td>
           </tr>
         ) }
         </tbody></table>

@@ -36,7 +36,7 @@ type Calibration = {
   centre: Point
 }
 
-const CALIBRATION_ROTATE_COUNT = 1 // 3
+const CALIBRATION_ROTATE_COUNT = 2 // 3
 const CALIBRATION_CENTRE_COUNT = 20 // 100
 const CALIBRATION_SAMPLE_HZ = 100
 

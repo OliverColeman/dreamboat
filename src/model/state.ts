@@ -38,5 +38,6 @@ export const vehicleState = atom<VehicleState>({
     rpmPredicted: 0,
     error: null,
     telemetry: null,
+    brakeEnabled: false,
   },
 })

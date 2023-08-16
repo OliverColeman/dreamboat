@@ -5,16 +5,29 @@ import { useRecoilValue } from 'recoil'
 import Color from 'color'
 
 import { appDimensionsState, driveModeState, vehicleState } from '../model/state'
-import { makeStyles, useTheme } from '@material-ui/core'
+import { Theme, makeStyles, useTheme } from '@material-ui/core'
 import { bedSize, gridSpacing, maxVehicleSpeed, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
 import { DriveMode, Coord, VehicleState, Polar } from '../model/types'
 
 Konva.angleDeg = false
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles<Theme>((theme) => ({
   root: {
     flexGrow: 1,
   },
+  emergencyStop: () => ({
+    color: theme.palette.error.main,
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    padding: '10px',
+    backgroundColor: theme.palette.background.default,
+    borderWidth: '2px',
+    borderColor: theme.palette.error.main,
+    transform: 'translate(-50%,-50%)',
+    zIndex: 20,
+    fontSize: '64px',
+  }),
 }))
 
 export default function Visualisation () {
@@ -52,6 +65,10 @@ export default function Visualisation () {
 
   return (
     <div className={classes.root}>
+      { vehicle.telemetry && vehicle.telemetry.downlow.emergencyStopTriggered && <div className={classes.emergencyStop}>
+        Emergency Stop
+      </div> }
+
       <Stage width={width} height={height} scaleX={scale} scaleY={scale} offsetX={-widthScaled / 2} offsetY={-heightScaled / 2}>
         <Layer>
           <Group

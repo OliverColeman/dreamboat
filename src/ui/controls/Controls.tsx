@@ -35,6 +35,13 @@ const useStyles = makeStyles((theme) =>
       left: 0,
       zIndex: 10,
     }),
+    brake: ({ appDimensions }:AppDimensionStyleProps) => ({
+      position: 'absolute',
+      top: '40%',
+      right: 0,
+      transform: 'translate(0,-50%)',
+      zIndex: 10,
+    }),
     stats: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
       bottom: 0,
@@ -48,6 +55,7 @@ const useStyles = makeStyles((theme) =>
 )
 
 export default function Controls () {
+  const vehicle = useRecoilValue(vehicleState)
   const resetVehicleState = useResetRecoilState(vehicleState)
   const setVehicleState = useSetRecoilState(vehicleState)
 
@@ -55,8 +63,9 @@ export default function Controls () {
     reset && resetVehicleState()
     setVehicleState(current => ({
       ...current,
-      centreAbs: { x: 0, y: 0 },
-      rotationPredicted: 0,
+      // TODO these don't seem to be necessary
+      // centreAbs: { x: 0, y: 0 },
+      // rotationPredicted: 0,
     }))
   }, [setVehicleState, resetVehicleState])
 
@@ -65,12 +74,23 @@ export default function Controls () {
     [updateVehicleState]
   )
 
-  const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'))
+  // const resetControlKeyPadState = useResetRecoilState(control2DFamily('wasd'))
 
   const reset = useCallback(() => {
     updateVehicleState(true)
-    resetControlKeyPadState()
-  }, [updateVehicleState, resetControlKeyPadState])
+    // resetControlKeyPadState()
+  }, [
+    updateVehicleState,
+    // resetControlKeyPadState
+  ])
+
+  const brake = useCallback((brakeEnabled:boolean) => {
+    !brakeEnabled && resetVehicleState()
+    setVehicleState(current => ({
+      ...current,
+      brakeEnabled,
+    }))
+  }, [setVehicleState])
 
   const appDimensions = useRecoilValue(appDimensionsState)
   const classes = useStyles({ appDimensions })
@@ -93,7 +113,17 @@ export default function Controls () {
         <DriveModeSelector />
       </div>
       <div className={classes.reset}>
-        <Button onClick={reset}>Reset</Button>
+        <Button onClick={reset} variant="outlined">Reset</Button>
+      </div>
+      <div className={classes.brake}>
+        <Button
+          onClick={() => brake(!vehicle.brakeEnabled)}
+          color="secondary"
+          size="large"
+          variant={vehicle.brakeEnabled ? 'contained' : 'outlined'}
+        >
+          Brake
+        </Button>
       </div>
     </div>
   )

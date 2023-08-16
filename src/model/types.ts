@@ -52,7 +52,7 @@ export type WheelTelemetry = {
 export type DownLowTelemetry = {
   isConnected: boolean
   error: string
-  /** Battery voltage. */
+  emergencyStopTriggered: boolean
   batteryVoltage: number
   /** Telemetry for each wheel. */
   wheels: WheelTelemetry[]
@@ -93,6 +93,8 @@ export type VehicleState = {
   error:string|null
   /** Telemetry from various sensors. */
   telemetry: Telemetry
+  /** Flag indicating if the brake is currently enabled. */
+  brakeEnabled: boolean
 }
 
 export const DriveMode = Enum(
