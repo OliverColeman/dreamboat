@@ -9,7 +9,7 @@ export const maxVehicleSpeed = 5 * mmPerS2kmPerHr // There are (1000*1000)/(60*6
 /** Maximum turn rate of vehicle in revolutions per second. */
 export const maxRPS = 0.05 // Revolutions/second
 /** Maximum turn rate of wheels */
-export const maxWheelSteerRPS = 1 // 60 RPM
+export const maxWheelSteerRPS = 0.5 // 30 RPM
 
 /** Maximum pivot point change factor.
  * This controls how far the desired pivot point can move,
@@ -24,8 +24,8 @@ export const visualScale = 0.125 // px/mm
 export const gridSpacing = 1000 // mm
 
 export const bedSize:Dimensions = {
-  width: 1530,
-  height: 2030,
+  width: 1870,
+  height: 2070,
 }
 export const wheelCentreMargin = 250
 export const wheelDiameter = 350
