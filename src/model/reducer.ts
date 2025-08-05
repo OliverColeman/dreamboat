@@ -2,7 +2,7 @@ import produce from 'immer'
 import Flatten from '@flatten-js/core'
 import _ from 'lodash'
 
-import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, maxRotationDelta } from '../settings'
+import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, maxRotationDelta, wheelPivotDistanceDiscountDistance } from '../settings'
 import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, normaliseAngle, vecLen } from '../util'
 import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2, Telemetry, WheelTelemetry } from './types'
 
@@ -242,8 +242,17 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
       let speedReductionFactor = 1
 
       // If any achievable wheel angles are too far from the target wheel angle, slow or stop driving.
-      const achieveableVsTargetAngleDeltas = achievableWheelAngles.map((achievableAngle, i) => Math.abs(normaliseAngle(achievableAngle - targetWheelState[i].angle)))
-      const maxAngleDiff = _.max(achieveableVsTargetAngleDeltas)
+      const achieveableVsTargetAngleDeltas = achievableWheelAngles.map(
+        (achievableAngle, wi) => Math.abs(normaliseAngle(achievableAngle - targetWheelState[wi].angle))
+      )
+      // Also factor in how close the pivot point is to the wheel, if it's close it doesn't matter so much.
+      const wheelDistanceToPivot = wheelPositions.map(wheelPos => (vecLen(wheelPos.x - pivotAchievable.x, wheelPos.y - pivotAchievable.y)))
+      const achieveableVsTargetAngleDeltasDiscounted = achieveableVsTargetAngleDeltas.map((angleDelta, wi) =>
+        wheelDistanceToPivot[wi] > wheelPivotDistanceDiscountDistance
+          ? angleDelta // If greater than 0.1 metres then no discounting.
+          : (wheelDistanceToPivot[wi] / wheelPivotDistanceDiscountDistance) * angleDelta // If less than 0.1 metres then discount proportionally.
+      )
+      const maxAngleDiff = _.max(achieveableVsTargetAngleDeltasDiscounted)
       if (maxAngleDiff > 0) {
         speedReductionFactor
           = maxAngleDiff >= maxWheelSteerDeltaPerFrame

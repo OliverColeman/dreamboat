@@ -7,13 +7,18 @@ export const frameRate = 20 // Per second.
 /** Maximum vehicle speed in mm / s */
 export const maxVehicleSpeed = 5 * mmPerS2kmPerHr // There are (1000*1000)/(60*60) mm/s in 1 km/h
 /** Maximum turn rate of vehicle in revolutions per second. */
-export const maxRPS = 0.05 // Revolutions/second
+export const maxRPS = 0.2 // Revolutions/second
 /** Maximum turn rate of wheels */
-export const maxWheelSteerRPS = 0.5 // 30 RPM
+export const maxWheelSteerRPS = 2.5
+/** Distance from wheel to pivot point at which to start discounting (proportionall) how much we care about whether
+ * the wheel can turn fast enough. If the wheel is very close to the pivot point it means we're (almost) pivoting on
+ * it, so it doesn't matter so much if the wheel isn't facing in quite the right direction.
+ */
+export const wheelPivotDistanceDiscountDistance = 0.5 * 1000
 
 /** Maximum pivot point change factor.
  * This controls how far the desired pivot point can move,
- * relative to the current distance to the vehicle centre. */
+ * relative to the current distance to the vehicle centre */
 export const maxPivotPointDistanceChangeFactor = 0.5
 /** Maximum change in vehicle rotation speed (revolutions per second per second). */
 export const maxRotationDelta = maxRPS * 0.1
@@ -93,4 +98,4 @@ export const motorControllerTelemetryUpdateInterval = 1000 / 10
 /** Maximum output voltage of sabertooth motor controller as proportion of input voltage. */
 export const motorControllerMaxMotorOutputRate = 0.94
 /** Maximum output current per channel of sabertooth motor controllers. */
-export const motorControllerMaxCurrentPerMotor = 26
+export const motorControllerMaxCurrentPerMotor = 9999
