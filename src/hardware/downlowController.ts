@@ -160,6 +160,7 @@ class DownLow {
         }
         dataIdx++
 
+        // 1 byte for general status flags, bit format [ e-stop, ]
         const emergencyStopTriggered = !!(data[dataIdx] & 0x01)
         dataIdx++
 
@@ -229,6 +230,7 @@ const updateTelemetry = async () => {
     try {
       const telemetry = await downlowController.get()
       downlowTelemetry.wheels = telemetry.wheels
+      downlowTelemetry.emergencyStopTriggered = telemetry.emergencyStopTriggered
       downlowTelemetry.batteryVoltage = telemetry.batteryVoltage
       downlowTelemetry.emergencyStopTriggered = telemetry.emergencyStopTriggered
     } catch (err) { }

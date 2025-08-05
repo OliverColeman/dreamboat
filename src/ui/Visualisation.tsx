@@ -66,7 +66,7 @@ export default function Visualisation () {
   return (
     <div className={classes.root}>
       { vehicle.telemetry && vehicle.telemetry.downlow.emergencyStopTriggered && <div className={classes.emergencyStop}>
-        Emergency Stop
+        ! E-Stop !
       </div> }
 
       <Stage width={width} height={height} scaleX={scale} scaleY={scale} offsetX={-widthScaled / 2} offsetY={-heightScaled / 2}>
