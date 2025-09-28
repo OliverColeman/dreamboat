@@ -1,10 +1,21 @@
-import { Box, makeStyles } from '@material-ui/core'
-import { atom, useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
+import { makeStyles } from '@material-ui/core'
+import { atom, useRecoilValue, useSetRecoilState } from 'recoil'
 
-const logState = atom<string[]>({
+export const logState = atom<string[]>({
   key: 'LogState',
   default: ['Log started'],
 })
+
+export function useLog () {
+  const setMessages = useSetRecoilState(logState)
+
+  const log = (msg:string) => setMessages((messages) => [
+    msg,
+    ...messages.slice(0, 9),
+  ])
+
+  return log
+}
 
 const useStyles = makeStyles(() =>
   ({
@@ -14,8 +25,8 @@ const useStyles = makeStyles(() =>
       left: 200,
       zIndex: 10,
       fontSize: '16px',
-      width: 300,
-      height: 40,
+      width: 500,
+      height: 70,
       overflowX: 'hidden',
       overflowY: 'auto',
     }),
@@ -37,14 +48,3 @@ const Log = () => {
 }
 
 export default Log
-
-export function useLog () {
-  const setMessages = useSetRecoilState(logState)
-
-  const log = (msg:string) => setMessages((messages) => [
-    ...messages,
-    msg,
-  ])
-
-  return log
-}

@@ -6,8 +6,8 @@ import Color from 'color'
 
 import { appDimensionsState, driveModeState, vehicleState } from '../model/state'
 import { Theme, makeStyles, useTheme } from '@material-ui/core'
-import { bedSize, gridSpacing, maxVehicleSpeed, visualScale as scale, wheelDiameter, wheelPositions } from '../settings'
-import { DriveMode, Coord, VehicleState, Polar } from '../model/types'
+import { bedSize, gridSpacing, maxVehicleSpeed, visualScale as scale, wheelDiameter, wheelPositions, simulationMode } from '../settings'
+import { DriveMode, Coord, Polar } from '../model/types'
 
 Konva.angleDeg = false
 
@@ -27,6 +27,18 @@ const useStyles = makeStyles<Theme>((theme) => ({
     transform: 'translate(-50%,-50%)',
     zIndex: 20,
     fontSize: '64px',
+  }),
+  simulationMode: () => ({
+    color: theme.palette.info.main,
+    position: 'absolute',
+    top: '5%',
+    left: '50%',
+    padding: '10px',
+    backgroundColor: theme.palette.background.default,
+    transform: 'translate(-50%,-50%)',
+    zIndex: 0,
+    fontSize: '32px',
+    opacity: 0.5,
   }),
 }))
 
@@ -67,6 +79,10 @@ export default function Visualisation () {
     <div className={classes.root}>
       { vehicle.telemetry && vehicle.telemetry.downlow.emergencyStopTriggered && <div className={classes.emergencyStop}>
         ! E-Stop !
+      </div> }
+
+      { simulationMode && <div className={classes.simulationMode}>
+        SIMULATION MODE
       </div> }
 
       <Stage width={width} height={height} scaleX={scale} scaleY={scale} offsetX={-widthScaled / 2} offsetY={-heightScaled / 2}>

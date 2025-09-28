@@ -1,14 +1,21 @@
 // Require rpio like this because https://stackoverflow.com/a/43971252/1133481
-const rpio = window.require('rpio')
 
-rpio.init({
-  gpiomem: false, // Use /dev/mem to allow SPI, i2c etc
-})
+let rpio
 
-// Init SPI for access to mcp3008
-rpio.spiBegin()
-const spiClockMHz = 1.35 // Safe speed for supply voltages down to 2.7V
-rpio.spiSetClockDivider(Math.round(125 / spiClockMHz) * 2) // 250MHz base. Must be even number.
+try {
+  rpio = window.require('rpio')
+
+  rpio.init({
+    gpiomem: false, // Use /dev/mem to allow SPI, i2c etc
+  })
+
+  // Init SPI for access to mcp3008
+  rpio.spiBegin()
+  const spiClockMHz = 1.35 // Safe speed for supply voltages down to 2.7V
+  rpio.spiSetClockDivider(Math.round(125 / spiClockMHz) * 2) // 250MHz base. Must be even number.
+} catch (e) {
+  console.warn('Could not load rpio, using dummy ADC implementation.', e)
+}
 
 export type ADCConfig = {
   /** Chip select for SPI devices. */

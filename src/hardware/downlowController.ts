@@ -3,15 +3,8 @@
 import _ from 'lodash'
 import SerialPort from 'serialport'
 import { DownLowTelemetry, WheelState, WheelTelemetry } from '../model/types'
-import { downlowMcuSerialNumber, downlowTelemetryUpdateInterval, maxVehicleSpeed, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts, wheelCount } from '../settings'
+import { downlowMcuSerialNumber, downlowTelemetryUpdateInterval, maxVehicleSpeed, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts, wheelCount, simulationMode } from '../settings'
 import { normaliseAngle, normaliseValueToRange, rad2Deg } from '../util'
-let SerialPortClass:typeof SerialPort
-try {
-  // In electron window.require should be used.
-  SerialPortClass = window.require('serialport')
-} catch (e) {
-  SerialPortClass = require('serialport')
-}
 
 enum Command {
   Set = 83, // 'S'
@@ -30,16 +23,32 @@ const getWheelTelemetryTemplate = ():WheelTelemetry => ({
   steeringMotorControllerFault: false,
 })
 
-class DownLow {
+abstract class DownLowBase {
+  abstract isConnected(): boolean
+  abstract getLastError(): Error
+  abstract get(): Promise<Partial<DownLowTelemetry>>
+  abstract updateWheelAnglesAndDriveRate(newWheelState:WheelState[]): void
+}
+
+class DownLow extends DownLowBase {
   private serial: SerialPort
   private lastError: Error = null
 
   constructor () {
+    super()
     this.connect()
   }
 
   /** Attempt to connect to the MCU. Retries connecting if the connection fails. */
   private async connect () {
+    let SerialPortClass:typeof SerialPort
+    try {
+      // In electron window.require should be used.
+      SerialPortClass = window.require('serialport')
+    } catch (e) {
+      SerialPortClass = require('serialport')
+    }
+
     const devices:SerialPort.PortInfo[] = (await SerialPortClass.list()).filter(port => port.serialNumber === downlowMcuSerialNumber)
     if (devices.length === 0) {
       this.lastError = Error('Could not find downlow MCU')
@@ -199,12 +208,38 @@ class DownLow {
   }
 }
 
+/** Simulated downlow controller, assumes that all commands are followed exactly by the hardware. */
+class DownLowSimulated extends DownLowBase {
+  private lastError: Error = null
+  private wheels:WheelTelemetry[] = _.range(wheelCount).map(getWheelTelemetryTemplate)
+  private emergencyStopTriggered = false
+  private batteryVoltage = 13.0
+
+  isConnected = () => true
+
+  getLastError = () => this.lastError
+
+  get = async () => ({
+    wheels: this.wheels,
+    emergencyStopTriggered: this.emergencyStopTriggered,
+    batteryVoltage: this.batteryVoltage,
+  })
+
+  updateWheelAnglesAndDriveRate (newWheelState:WheelState[]) {
+    for (let wi = 0; wi < wheelCount; wi++) {
+      this.wheels[wi].angle = newWheelState[wi].angle
+      this.wheels[wi].driveRate = newWheelState[wi].speed / maxVehicleSpeed
+      this.wheels[wi].ready = true
+    }
+  }
+}
+
 /**
  * Handles communication with the microcontroller unit (MCU) located under the vehicle.
  * This MCU controls the steering motors for each wheel, and provides associated telemetry.
  * In future it may provide for other things, such as lights and collision avoidance sensors.
  */
-export const downlowController = new DownLow()
+export const downlowController = simulationMode ? new DownLowSimulated() : new DownLow()
 
 const downlowTelemetry:DownLowTelemetry = {
   isConnected: false,
@@ -236,7 +271,7 @@ const updateTelemetry = async () => {
     } catch (err) { }
   }
 
-  // Update no more frequently than motorControllerStateUpdateInterval
+  // Update no more frequently than downlowTelemetryUpdateInterval
   // This allows for the update taking longer than the desired interval.
   setTimeout(updateTelemetry, Math.max(1, downlowTelemetryUpdateInterval - (Date.now() - updateStarted)))
 }

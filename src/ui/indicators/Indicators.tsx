@@ -53,7 +53,7 @@ const Indicators = () => {
         {(Math.abs(vehicle.speedPredicted) / mmPerS2kmPerHr).toFixed(1)} km/h
       </div>
       <div className={classes.speedrpm}>
-        {(rad2Deg(Math.abs(vehicle.rpmPredicted)) / 60).toFixed(1)} RPM
+        {vehicle.rpmPredicted.toFixed(1)} RPM
       </div>
     </div>
 

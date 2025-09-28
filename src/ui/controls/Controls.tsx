@@ -2,9 +2,9 @@ import React, { useCallback, useEffect } from 'react'
 import { useRecoilValue, useResetRecoilState, useSetRecoilState } from 'recoil'
 import { Button, makeStyles } from '@material-ui/core'
 
-import { control2DFamily, vehicleState, appDimensionsState } from '../../model/state'
+import { vehicleState, appDimensionsState } from '../../model/state'
 import DriveModeSelector from './DriveModeSelector'
-import { joystick0, joystick1, controlType, fontSize } from '../../settings'
+import { joystick0, joystick1, controlType, controlVisualSize } from '../../settings'
 import { Controls2D, AppDimensionStyleProps } from '../../model/types'
 import Joystick from './Joystick'
 import { KeyPad, MousePad } from './ControlPad'
@@ -25,7 +25,7 @@ const useStyles = makeStyles((theme) =>
     }),
     driveMode: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
-      top: appDimensions.height / 2 - fontSize * 3.3,
+      top: controlVisualSize + 50,
       left: 0,
       zIndex: 10,
     }),
@@ -37,9 +37,8 @@ const useStyles = makeStyles((theme) =>
     }),
     brake: ({ appDimensions }:AppDimensionStyleProps) => ({
       position: 'absolute',
-      top: '40%',
+      top: controlVisualSize + 50,
       right: 0,
-      transform: 'translate(0,-50%)',
       zIndex: 10,
     }),
     stats: ({ appDimensions }:AppDimensionStyleProps) => ({
