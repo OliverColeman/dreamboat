@@ -2,10 +2,10 @@ import { ADCConfig } from './hardware/adc'
 import { Dimensions, Vec2, ControlType } from './model/types'
 import { mmPerS2kmPerHr } from './util'
 
-export const simulationMode = true
+export const simulationMode = false
 
-// export const controlType:ControlType = 'joystick'
-export const controlType:ControlType = 'keypadmouse'
+export const controlType:ControlType = 'joystick'
+// export const controlType:ControlType = 'keypadmouse'
 
 /** Frequency for calculating wheel states, as frames per second. */
 export const frameRate = 20 // Per second.
