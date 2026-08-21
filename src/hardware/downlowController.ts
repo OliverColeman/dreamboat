@@ -30,16 +30,22 @@ abstract class DownLowBase {
   abstract updateWheelAnglesAndDriveRate(newWheelState:WheelState[]): void
 }
 
+/** Expected number of bytes in a GET response (7 bytes per wheel + 4 bytes of shared state). */
+const GET_RESPONSE_BYTES = wheelCount * 7 + 4
+
 class DownLow extends DownLowBase {
-  private serial: SerialPort
+  private serial: SerialPort | null = null
   private lastError: Error = null
+  private reconnectScheduled = false
+  // Callback invoked when the active port closes unexpectedly, so in-flight get() can reject.
+  private onPortClose: ((port: SerialPort) => void) | null = null
 
   constructor () {
     super()
     this.connect()
   }
 
-  /** Attempt to connect to the MCU. Retries connecting if the connection fails. */
+  /** Load SerialPort class and begin initial connection attempt. */
   private async connect () {
     let SerialPortClass:typeof SerialPort
     try {
@@ -48,48 +54,76 @@ class DownLow extends DownLowBase {
     } catch (e) {
       SerialPortClass = require('serialport')
     }
+    this.tryConnect(SerialPortClass)
+  }
 
-    const devices:SerialPort.PortInfo[] = (await SerialPortClass.list()).filter(port => port.serialNumber === downlowMcuSerialNumber)
-    if (devices.length === 0) {
-      this.lastError = Error('Could not find downlow MCU')
+  /**
+   * Re-enumerate USB devices to find the MCU by serial number, then create and open
+   * a fresh SerialPort instance. Re-enumeration on every reconnect attempt handles
+   * device path changes (e.g. /dev/ttyACM0 → /dev/ttyACM1) that occur after a
+   * physical USB disconnect/reconnect.
+   */
+  private async tryConnect (SerialPortClass:typeof SerialPort) {
+    let devices:SerialPort.PortInfo[]
+    try {
+      devices = (await SerialPortClass.list()).filter(port => port.serialNumber === downlowMcuSerialNumber)
+    } catch (e) {
+      this.lastError = e
+      this.scheduleReconnect(SerialPortClass)
       return
     }
 
-    this.serial = new SerialPortClass(devices[0].path, {
+    if (devices.length === 0) {
+      this.lastError = new Error('Could not find downlow MCU')
+      this.scheduleReconnect(SerialPortClass)
+      return
+    }
+
+    const port = new SerialPortClass(devices[0].path, {
       baudRate: usbBaudRate,
       autoOpen: false,
     })
 
-    // eslint-disable-next-line no-undef
-    let connectIntervalHandle:NodeJS.Timeout
+    port.on('open', () => {
+      this.lastError = null
+    })
 
-    const connectSerial = () => {
-      // Attempt to connect once per second.
-      connectIntervalHandle = setInterval(
-        () => this.serial.open(),
-        1000
-      )
-    }
+    port.on('error', (err) => {
+      this.lastError = err
+    })
 
-    // When a connection is established, cancel the connection attempt function.
-    this.serial.on('open', () => {
-      if (connectIntervalHandle) {
-        clearInterval(connectIntervalHandle)
-        connectIntervalHandle = null
-        this.lastError = null
+    port.on('close', (err) => {
+      // Ignore stale events from a port that is no longer the active one.
+      if (port !== this.serial) return
+      if (err) this.lastError = new Error(err.message || 'Port closed unexpectedly')
+      this.serial = null
+      // Notify any in-flight get() so it can reject immediately rather than hanging.
+      if (this.onPortClose) {
+        const cb = this.onPortClose
+        this.onPortClose = null
+        cb(port)
+      }
+      this.scheduleReconnect(SerialPortClass)
+    })
+
+    this.serial = port
+    port.open((err) => {
+      if (err) {
+        this.lastError = err
+        if (this.serial === port) this.serial = null
+        this.scheduleReconnect(SerialPortClass)
       }
     })
+  }
 
-    this.serial.on('error', (err) => {
-      this.lastError = err
-    })
-
-    this.serial.on('close', (err) => {
-      this.lastError = err
-      connectSerial()
-    })
-
-    connectSerial()
+  /** Schedule a single reconnect attempt in 1 second, preventing duplicate timers. */
+  private scheduleReconnect (SerialPortClass:typeof SerialPort) {
+    if (this.reconnectScheduled) return
+    this.reconnectScheduled = true
+    setTimeout(() => {
+      this.reconnectScheduled = false
+      this.tryConnect(SerialPortClass)
+    }, 1000)
   }
 
   /** Returns true iff the USB serial connection is open and working. */
@@ -100,13 +134,34 @@ class DownLow extends DownLowBase {
 
   /** Get telemetry from the downlow MCU. */
   get () {
+    // Capture the port reference at call time so cleanup() can remove listeners
+    // even after this.serial has been cleared by a disconnect.
+    const serial = this.serial
     return new Promise<Partial<DownLowTelemetry>>((resolve, reject) => {
       let attemptCount = 0
       // eslint-disable-next-line no-undef
       let timeoutHandle:NodeJS.Timeout
+      // Accumulate incoming bytes across multiple data events (serial data can
+      // arrive in fragments rather than as a single complete response).
+      let receiveBuffer = new Uint8Array(0)
+
+      const cleanup = () => {
+        clearTimeout(timeoutHandle)
+        serial.removeListener('data', dataListener)
+        this.onPortClose = null
+      }
+
+      // Reject the promise immediately if the port closes while we are waiting,
+      // (don't hang until all retry timeouts have elapsed).
+      this.onPortClose = (closedPort) => {
+        if (closedPort !== serial) return
+        cleanup()
+        reject(new Error('Serial port closed during get request'))
+      }
 
       const attemptRequest = () => {
         attemptCount += 1
+        receiveBuffer = new Uint8Array(0)
 
         this.send([Command.Get])
 
@@ -117,8 +172,8 @@ class DownLow extends DownLowBase {
 
             if (attemptCount === usbMaxGetAttempts) {
               console.error('Downlow aborting get request')
-              this.serial.removeListener('data', dataListener)
-              reject(Error('Downlow get request timed out'))
+              cleanup()
+              reject(new Error('Downlow get request timed out'))
             } else {
               console.warn('Downlow retrying get request')
               // Try again...
@@ -128,9 +183,15 @@ class DownLow extends DownLowBase {
         }
       }
 
-      const dataListener = (data:Buffer) => {
-        clearTimeout(timeoutHandle)
-        this.serial.removeListener('data', dataListener)
+      const dataListener = (data:Buffer | Uint8Array) => {
+        // Accumulate bytes until we have a complete response.
+        const tmp = new Uint8Array(receiveBuffer.length + data.length)
+        tmp.set(receiveBuffer)
+        tmp.set(data, receiveBuffer.length)
+        receiveBuffer = tmp
+        if (receiveBuffer.length < GET_RESPONSE_BYTES) return
+
+        cleanup()
 
         let dataIdx = 0
 
@@ -138,48 +199,48 @@ class DownLow extends DownLowBase {
 
         for (let wi = 0; wi < wheelCount; wi++) {
           // 2 bytes to represent current angle of wheel, in range [0-65535].
-          const shortVal = data[dataIdx++] << 8 | data[dataIdx++]
+          const shortVal = receiveBuffer[dataIdx++] << 8 | receiveBuffer[dataIdx++]
           const unitAngle = shortVal / 65535.0
 
           wheels[wi].angle = normaliseAngle(unitAngle * 2 * Math.PI)
 
           // 1 byte to represent rate the drive motor is being driven at.
-          wheels[wi].driveRate = (data[dataIdx++] - 127.0) / 127.0
+          wheels[wi].driveRate = (receiveBuffer[dataIdx++] - 127.0) / 127.0
 
           // 1 byte to represent rate the steering motor is being driven at.
-          wheels[wi].steeringRate = (data[dataIdx++] - 127.0) / 127.0
+          wheels[wi].steeringRate = (receiveBuffer[dataIdx++] - 127.0) / 127.0
 
           // 1 byte to represent time wheel has been stuck, in tenths of a second.
-          wheels[wi].stuckTime = data[dataIdx++] * 0.1
+          wheels[wi].stuckTime = receiveBuffer[dataIdx++] * 0.1
 
           // 1 byte to represent temperature of the drive motor controller channel for the wheel, in degrees C.
-          // wheels[wi].driveOutputTemperature = data[dataIdx++]
+          // wheels[wi].driveOutputTemperature = receiveBuffer[dataIdx++]
 
           // 1 byte to represent the current being drawn by the steering motor, in halves of an amp.
-          wheels[wi].steeringCurrent = (data[dataIdx++] - 127) * 0.5
+          wheels[wi].steeringCurrent = (receiveBuffer[dataIdx++] - 127) * 0.5
 
           // 1 byte to represent the current being drawn by the drive motor, in halves of an amp.
-          wheels[wi].driveCurrent = (data[dataIdx++] - 127) * 0.5
+          wheels[wi].driveCurrent = (receiveBuffer[dataIdx++] - 127) * 0.5
         }
 
         // 1 byte for wheel fault (of steering motor driver) and ready status flags, bit format [ w3f w2f w1f w0f w3r w2r w1r w0r ]
         for (let wi = 0; wi < wheelCount; wi++) {
-          wheels[wi].ready = !!((data[dataIdx] >> wi) & 0x01)
-          wheels[wi].steeringMotorControllerFault = !!((data[dataIdx] >> wi + 4) & 0x01)
+          wheels[wi].ready = !!((receiveBuffer[dataIdx] >> wi) & 0x01)
+          wheels[wi].steeringMotorControllerFault = !!((receiveBuffer[dataIdx] >> wi + 4) & 0x01)
         }
         dataIdx++
 
         // 1 byte for general status flags, bit format [ e-stop, ]
-        const emergencyStopTriggered = !!(data[dataIdx] & 0x01)
+        const emergencyStopTriggered = !!(receiveBuffer[dataIdx] & 0x01)
         dataIdx++
 
         // 2 bytes to represent battery voltage in tenths of a volt.
-        const batteryVoltage = (data[dataIdx++] << 8 | data[dataIdx++]) / 10
+        const batteryVoltage = (receiveBuffer[dataIdx++] << 8 | receiveBuffer[dataIdx++]) / 10
 
         resolve({ emergencyStopTriggered, batteryVoltage, wheels })
       }
 
-      this.serial.on('data', dataListener)
+      serial.on('data', dataListener)
 
       attemptRequest()
     })
