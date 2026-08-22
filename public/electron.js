@@ -5,15 +5,35 @@ const { app, BrowserWindow, protocol } = require('electron')
 const path = require('path')
 const url = require('url')
 
+/** Values of an environment variable that are taken to mean "on"; anything else means "off".
+ * The same list as `envTruthyValues` in src/settings.ts.
+ */
+const envTruthyValues = ['true', '1', 'yes', 'on']
+
+/** Whether the application drives simulated hardware instead of the vehicle. The renderer decides
+ * this from the same variable, which Create React App inlines when the application is started or
+ * built; the main process reads it from the environment at run time, so `sim.sh` exports it for the
+ * whole process tree.
+ */
+const simulationMode = envTruthyValues.includes(
+  (process.env.REACT_APP_SIMULATION_MODE ?? '').trim().toLowerCase()
+)
+
+/** Size of the display in the hand-held controller, in pixels. */
+const controllerDisplaySize = { width: 1024, height: 600 }
+
 // Create the native browser window.
 function createWindow () {
   const mainWindow = new BrowserWindow({
-    x: 0,
-    y: 0,
-    width: 1024,
-    height: 600,
+    // On the vehicle the application occupies the whole of the hand-held controller's display. In
+    // simulation it runs on an ordinary desktop, so it takes a centred window whose content area is
+    // the size of that display, giving the same layout as the controller shows.
+    ...(simulationMode ? { center: true } : { x: 0, y: 0 }),
+    width: controllerDisplaySize.width,
+    height: controllerDisplaySize.height,
+    useContentSize: true,
     autoHideMenuBar: true,
-    fullscreen: true,
+    fullscreen: !simulationMode,
     // Set the path of an additional "preload" script that can be used to
     // communicate between node-land and browser-land.
     webPreferences: {

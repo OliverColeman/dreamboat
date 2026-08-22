@@ -2,6 +2,12 @@
 
 let rpio
 
+/** Whether rpio loaded and its serial peripheral interface (SPI) came up. This is only so on the
+ * Raspberry Pi in the hand-held controller, which is where the MCP3008 analogue-to-digital
+ * converter (ADC) is wired; anywhere else `DummyADC` stands in for it.
+ */
+let rpioAvailable = false
+
 try {
   rpio = window.require('rpio')
 
@@ -13,6 +19,8 @@ try {
   rpio.spiBegin()
   const spiClockMHz = 1.35 // Safe speed for supply voltages down to 2.7V
   rpio.spiSetClockDivider(Math.round(125 / spiClockMHz) * 2) // 250MHz base. Must be even number.
+
+  rpioAvailable = true
 } catch (e) {
   console.warn('Could not load rpio, using dummy ADC implementation.', e)
 }
@@ -39,6 +47,16 @@ export const ADCDefaultConfig: ADCConfig = Object.freeze({
   denoiseAlpha: 0.2,
 })
 
+/** Largest value the ten-bit MCP3008 reports. */
+const adcResolution = 1023
+/** The middle of the ADC range, which is what a joystick axis reads when it is centred. */
+const adcMidScale = Math.round(adcResolution / 2)
+
+/** The MCP3008 has eight channels. */
+const checkChannelValid = (channel: number) => {
+  if (channel < 0 || channel > 7) throw Error(`Channel ${channel} not valid, must be in range [0, 7].`)
+}
+
 function MCP3008ADC (config: ADCConfig) {
   const { chipSelect, sampleFrequency, denoiseAlpha } = config
   const oneMinusDenoiseAlpha = 1 - denoiseAlpha
@@ -62,15 +80,11 @@ function MCP3008ADC (config: ADCConfig) {
     }
   }, 1000 / sampleFrequency)
 
-  const checkChannelValid = (channel: number) => {
-    if (channel < 0 || channel > 7) throw Error(`Channel ${channel} not valid, must be in range [0, 7].`)
-  }
-
   const api: ADC = {
     openChannel: (channel) => {
       checkChannelValid(channel)
       if (!channelValue.has(channel)) {
-        channelValue.set(channel, 511)
+        channelValue.set(channel, adcMidScale)
       }
     },
     closeChannel: (channel) => {
@@ -83,7 +97,33 @@ function MCP3008ADC (config: ADCConfig) {
       if (!channelValue.has(channel)) throw Error(`Channel ${channel} not open.`)
       return channelValue.get(channel)
     },
-    resolution: () => 1023,
+    resolution: () => adcResolution,
+  }
+
+  return api
+}
+
+/** Stands in for the MCP3008 where rpio is unavailable, which is every machine other than the
+ * Raspberry Pi in the hand-held controller. Every open channel reads as centred, so the joysticks
+ * sit at rest and the vehicle stays still until another control moves it.
+ */
+function DummyADC () {
+  const openChannels = new Set<number>()
+
+  const api: ADC = {
+    openChannel: (channel) => {
+      checkChannelValid(channel)
+      openChannels.add(channel)
+    },
+    closeChannel: (channel) => {
+      checkChannelValid(channel)
+      openChannels.delete(channel)
+    },
+    readChannel: (channel) => {
+      if (!openChannels.has(channel)) throw Error(`Channel ${channel} not open.`)
+      return adcMidScale
+    },
+    resolution: () => adcResolution,
   }
 
   return api
@@ -97,7 +137,7 @@ export function getADC (config: Partial<ADCConfig> = {}) {
     ...config,
   }
   if (!adcSingletons.has(fullConfig.chipSelect)) {
-    adcSingletons.set(fullConfig.chipSelect, MCP3008ADC(fullConfig))
+    adcSingletons.set(fullConfig.chipSelect, rpioAvailable ? MCP3008ADC(fullConfig) : DummyADC())
   }
   return adcSingletons.get(fullConfig.chipSelect)
 }

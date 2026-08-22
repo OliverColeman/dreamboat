@@ -2,10 +2,24 @@ import { ADCConfig } from './hardware/adc'
 import { Dimensions, Vec2, ControlType } from './model/types'
 import { deg2Rad, mmPerS2kmPerHr } from './util'
 
-export const simulationMode = false
+/** Values of an environment variable that are taken to mean "on"; anything else means "off". */
+const envTruthyValues = ['true', '1', 'yes', 'on']
 
-export const controlType:ControlType = 'joystick'
-// export const controlType:ControlType = 'keypadmouse'
+/** Whether to drive simulated hardware instead of the vehicle.
+ * Off unless the environment variable `REACT_APP_SIMULATION_MODE` is set to one of `envTruthyValues`.
+ * Create React App inlines `REACT_APP_*` variables when the application is started or built, so the
+ * variable must be set for the process running `npm start` or `npm run build`; see `run.sh`.
+ */
+export const simulationMode = envTruthyValues.includes(
+  (process.env.REACT_APP_SIMULATION_MODE ?? '').trim().toLowerCase()
+)
+
+/** Which controls steer the vehicle. The hand-held controller carries two analogue joysticks, read
+ * over the serial peripheral interface (SPI) from an MCP3008 analogue-to-digital converter (ADC).
+ * Simulation runs on an ordinary desktop with neither, so there the keypad (`w`, `a`, `s`, `d`, `x`)
+ * and the mouse pad stand in for the first and second joystick respectively.
+ */
+export const controlType:ControlType = simulationMode ? 'keypadmouse' : 'joystick'
 
 /** Frequency for calculating wheel states, as frames per second. */
 export const frameRate = 20 // Per second.

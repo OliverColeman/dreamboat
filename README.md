@@ -32,6 +32,16 @@ Other resources:
 2. Clone the repo.
 3. In the project directory for the repo run `./rebuild.sh`.
 
-## Run the simulation
+## Run
 
-In the project directory run `./run.sh`
+### For realz
+
+Running it so it communicates with the real downlow controller to drive the actual vehicle:
+
+`./run.sh`
+
+### Simulation
+
+Running it with simulated hardware:
+
+`./sim.sh`
