@@ -2,7 +2,7 @@ import produce from 'immer'
 import Flatten from '@flatten-js/core'
 import _ from 'lodash'
 
-import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, wheelPivotDistanceDiscountDistance } from '../settings'
+import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, wheelPivotDistanceDiscountDistance, wheelAngleToleranceForFullSpeed, maxCurvatureDeltaPerSecond } from '../settings'
 import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, normaliseAngle, vecLen } from '../util'
 import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2, Telemetry, WheelTelemetry } from './types'
 
@@ -11,7 +11,8 @@ const maxDeltaPerFrame = maxVehicleSpeed / frameRate
 const maxRotateAnglePerFrame = (maxRPS / frameRate) * pi * 2
 /** Maximum amount a wheel can turn per frame. */
 export const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
-// const maxRotationDeltaPerFrame = maxRotationDelta / frameRate
+/** Maximum amount the steering curvature can change per frame. */
+const maxCurvatureDeltaPerFrame = maxCurvatureDeltaPerSecond / frameRate
 
 /**
  * Calculates new positions/angles and speeds for each wheel based on the control inputs and selected driving mode.
@@ -36,10 +37,11 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       vehicle.wheelsTarget = wheelBrakePositions
       vehicle.pivotTarget = { x: 0, y: 0, r: 0, a: 0 }
       vehicle.pivot = { x: 0, y: 0, r: 0, a: 0 }
+      vehicle.pivotCurvature = 0
       vehicle.speedPredicted = 0
       vehicle.rpmPredicted = 0
     } else if (control2d.some(c => c.r > movementMagnitudeThreshold)) {
-      const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted: currentRotationPredicted, pivot: currentPivot } = vehicle
+      const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted: currentRotationPredicted } = vehicle
 
       // For DAY_TRIPPER and HELTER_SKELTER mode,
       // base pivot angle is orthogonal to desired driving direction.
@@ -79,29 +81,26 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       if (mode === DriveMode.DRIVE_MY_CAR) {
         // Control0 y determines forward/backward speed, control1 x determines turn rate and direction.
 
-        // This mode works by flipping the pivot point between the left or right side of the vehicle,
-        // and simultaneously flipping the rotation direction.
-        pivotTargetPolar.a = control2d[1].x >= 0 ? 0 : pi
+        // Steering is expressed as a signed curvature: the reciprocal of the distance to the pivot point,
+        // positive for a pivot point to the right of the vehicle and negative for one to the left.
+        // Curvature is continuous through zero, which is straight ahead (an infinitely distant pivot point),
+        // so the pivot point moves from one side of the vehicle to the other by way of straight ahead
+        // rather than by way of the vehicle centre, and nothing about the motion is discontinuous.
+        const curvatureTarget = control2d[1].x / (DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_TURNING_MIN)
+        const curvature = constrainRange(
+          curvatureTarget,
+          vehicle.pivotCurvature - maxCurvatureDeltaPerFrame,
+          vehicle.pivotCurvature + maxCurvatureDeltaPerFrame
+        )
+        vehicle.pivotCurvature = curvature
 
-        // If the pivot point has switched sides...
-        if (currentPivot.a !== pivotTargetPolar.a) {
-          // ... force the target pivot point to wrap around from one "infinity" (+/-PIVOT_RADIUS_HEADING_STRAIGHT)
-          // to the other instead of moving through the centre of the vehicle. This can take multiple iterations.
-          // Once the straight ahead position is reached then it can then flip to the other side (wrap around from
-          // one "infinity" to the other).
+        const pivotIsToTheRight = curvature >= 0
+        pivotTargetPolar.a = pivotIsToTheRight ? 0 : pi
+        pivotTargetPolar.r = Math.min(1 / Math.abs(curvature), PIVOT_RADIUS_HEADING_STRAIGHT)
 
-          // If not yet at the straight ahead position...
-          if (currentPivot.r < DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_HEADING_STRAIGHT) {
-            // ... then keep the pivot angle on the same side.
-            pivotTargetPolar.a = currentPivot.a
-          }
-          // Keep driving the pivot point out to the "straight ahead" distance.
-          pivotTargetPolar.r = DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_HEADING_STRAIGHT
-        }
-
-        rotation
-            = Math.atan2(travelDelta, pivotTargetPolar.r)
-            * (pivotTargetPolar.a === 0 ? -1 : 1)
+        // The vehicle rotates one way about a pivot point to its right and the other way about a pivot
+        // point to its left, so the direction of rotation follows the side the pivot point is on.
+        rotation = Math.atan2(travelDelta, pivotTargetPolar.r) * (pivotIsToTheRight ? -1 : 1)
       } else if (mode === DriveMode.DAY_TRIPPER) {
         // control0 determines absolute direction, control1 spin rate.
         pivotTargetPolar.a = pivotAngle - currentRotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
@@ -123,26 +122,6 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       }
 
       rotation = constrainRange(rotation, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
-
-      // // Ensure target pivot point is not too far from current pivot point.
-      // // This ensures a non-jerky ride.
-      // const pivotTargetPoint = getPointFromPolar(pivotTargetPolar)
-      // const pivotTargetDistanceDelta = pointDistance(pivotTargetPoint, currentPivot)
-      // const allowedPivotTargetDistanceDelta = currentPivot.r * maxPivotPointDistanceChangeFactor
-      // if (pivotTargetDistanceDelta > allowedPivotTargetDistanceDelta) {
-      //   pivotTargetPolar = getPolarFromPoint(lerpPoints(
-      //     currentPivot, pivotTargetPoint,
-      //     allowedPivotTargetDistanceDelta / pivotTargetDistanceDelta
-      //   ))
-      // }
-
-      // // Ensure change in (rotation) speed is not too fast. This ensures a non-jerky ride.
-      // // Note: this has a direct relationship to the vehicle speed, as vehicle motion is
-      // // always modelled as pivoting around a pivot point.
-      // const rotationDelta = Math.abs(currentRotationPredicted - rotation)
-      // if (rotationDelta > maxRotationDeltaPerFrame) {
-      //   rotation *= maxRotationDeltaPerFrame / rotationDelta
-      // }
 
       pivotTargetPolar.a = normaliseAngle(pivotTargetPolar.a)
 
@@ -264,9 +243,9 @@ function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotat
       const maxAngleDiff = _.max(achieveableVsTargetAngleDeltasDiscounted)
       if (maxAngleDiff > 0) {
         speedReductionFactor
-          = maxAngleDiff >= maxWheelSteerDeltaPerFrame
+          = maxAngleDiff >= wheelAngleToleranceForFullSpeed
             ? 0
-            : 1 - maxAngleDiff / maxWheelSteerDeltaPerFrame
+            : 1 - maxAngleDiff / wheelAngleToleranceForFullSpeed
       }
 
       // If any wheels are set to go faster than possible (can happen for outside wheels when turning),

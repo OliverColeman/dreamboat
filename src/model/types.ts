@@ -83,6 +83,9 @@ export type VehicleState = {
   pivot: Coord
   /** Current target relative pivot point */
   pivotTarget: Coord
+  /** Current signed steering curvature (reciprocal of the distance to the pivot point), positive for a
+   * pivot point to the right of the vehicle and negative for one to the left. Used by DRIVE_MY_CAR. */
+  pivotCurvature: number
   /** Current predicted pivot point in absolute coordinates */
   pivotAbs:Point
   /** Current predicted speed, mm/s */

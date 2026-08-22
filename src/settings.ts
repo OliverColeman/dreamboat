@@ -1,6 +1,6 @@
 import { ADCConfig } from './hardware/adc'
 import { Dimensions, Vec2, ControlType } from './model/types'
-import { mmPerS2kmPerHr } from './util'
+import { deg2Rad, mmPerS2kmPerHr } from './util'
 
 export const simulationMode = false
 
@@ -24,10 +24,18 @@ export const maxRPS = 1.0 / minSecondsPerRevolution
 /** Maximum turn rate of wheels */
 export const maxWheelSteerRPS = 1.0 // 1 revolution per second
 
-/** Maximum pivot point change factor.
- * This controls how far the desired pivot point can move,
- * relative to the current distance to the vehicle centre */
-export const maxPivotPointDistanceChangeFactor = 0.5
+/** How far a wheel may be from its target angle before the vehicle is stopped, in radians.
+ * Any difference at all reduces the driving speed, in proportion to the largest difference among the
+ * wheels; at or beyond this difference the vehicle is stationary.
+ * This is a ride-quality choice, independent of how fast the wheels can steer (`maxWheelSteerRPS`).
+ */
+export const wheelAngleToleranceForFullSpeed = deg2Rad(15)
+
+/** How much the steering curvature (reciprocal of the distance to the pivot point) may change per second.
+ * This limits how quickly the pivot point may be moved towards or away from the vehicle, and how quickly it
+ * may move from one side of the vehicle to the other (passing through "straight ahead" on the way).
+ */
+export const maxCurvatureDeltaPerSecond = 1 / 500
 
 /** Scaling of visualisation, in pixels/mm */
 export const visualScale = 0.125 // px/mm
