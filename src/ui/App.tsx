@@ -10,6 +10,7 @@ import UpdateStateLoop from '../model/UpdateStateLoop'
 import { appDimensionsState } from '../model/state'
 import { fontSize } from '../settings'
 import UpdateMotors from '../model/UpdateMotors'
+import UpdateLighting from '../model/UpdateLighting'
 import Indicators from './indicators/Indicators'
 import Log from './indicators/Log'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -69,6 +70,7 @@ function App () {
     <div className={classes.root} ref={ref}>
       <UpdateStateLoop />
       <UpdateMotors />
+      <UpdateLighting />
       <Visualisation />
       <Controls />
       <Indicators />

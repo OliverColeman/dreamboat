@@ -115,6 +115,35 @@ export const driveModeLabels = Object.freeze({
   [DriveMode.MAGICAL_MYSTERY_TOUR]: 'Magical Mystery Tour',
 })
 
+export const LightingPattern = Enum(
+  'SOLID',
+  'RAINBOW',
+  'CHASE',
+  'PULSE',
+  'SPARKLE'
+)
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export type LightingPattern = Enum<typeof LightingPattern>
+export const lightingPatternLabels = Object.freeze({
+  [LightingPattern.SOLID]: 'Solid',
+  [LightingPattern.RAINBOW]: 'Rainbow',
+  [LightingPattern.CHASE]: 'Chase',
+  [LightingPattern.PULSE]: 'Pulse',
+  [LightingPattern.SPARKLE]: 'Sparkle',
+})
+
+/** Target state of the light-emitting diode (LED) strip.
+ * The white channel and the red, green and blue (RGB) channels are independent: the white level sets a
+ * steady wash over the whole strip and the RGB level scales the brightness of the selected pattern, so
+ * either may be off while the other is lit. Both levels are indices into the perceptual intensity scale,
+ * in the range [0, lightingLevelCount - 1].
+ */
+export type LightingState = {
+  whiteLevel: number
+  rgbLevel: number
+  pattern: LightingPattern
+}
+
 export type ControlType = 'joystick' | 'keypadmouse'
 
 export const Controls2D = Enum(

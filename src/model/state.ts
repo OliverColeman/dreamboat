@@ -1,6 +1,6 @@
 import { atom, atomFamily } from 'recoil'
 import { wheelPositions } from '../settings'
-import { DriveMode, Dimensions, Coord, VehicleState } from './types'
+import { DriveMode, Dimensions, Coord, LightingPattern, LightingState, VehicleState } from './types'
 import { getCoordFromPolar } from '../util'
 import _ from 'lodash'
 
@@ -22,6 +22,16 @@ export const control1DState = atom<number>({
 export const driveModeState = atom<DriveMode>({
   key: 'DriveModeState',
   default: DriveMode.DRIVE_MY_CAR,
+})
+
+/** Target state of the light-emitting diode (LED) strip. Dark at startup. */
+export const lightingState = atom<LightingState>({
+  key: 'LightingState',
+  default: {
+    whiteLevel: 0,
+    rgbLevel: 0,
+    pattern: LightingPattern.SOLID,
+  },
 })
 
 export const vehicleState = atom<VehicleState>({

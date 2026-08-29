@@ -2,13 +2,14 @@
 // So we need to import the SerialPort type and SerialPort class separately.
 import _ from 'lodash'
 import SerialPort from 'serialport'
-import { DownLowTelemetry, WheelState, WheelTelemetry } from '../model/types'
-import { downlowMcuSerialNumber, downlowTelemetryUpdateInterval, maxVehicleSpeed, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts, wheelCount, simulationMode } from '../settings'
+import { DownLowTelemetry, LightingPattern, LightingState, WheelState, WheelTelemetry } from '../model/types'
+import { downlowMcuSerialNumber, downlowTelemetryUpdateInterval, lightingResendInterval, maxVehicleSpeed, usbBaudRate, usbGetRetryTimeout, usbMaxGetAttempts, wheelCount, simulationMode } from '../settings'
 import { normaliseAngle, normaliseValueToRange, rad2Deg } from '../util'
 
 enum Command {
   Set = 83, // 'S'
   Get = 71, // 'G'
+  Lighting = 76, // 'L'
 }
 
 const getWheelTelemetryTemplate = ():WheelTelemetry => ({
@@ -28,10 +29,15 @@ abstract class DownLowBase {
   abstract getLastError(): Error
   abstract get(): Promise<Partial<DownLowTelemetry>>
   abstract updateWheelAnglesAndDriveRate(newWheelState:WheelState[]): void
+  abstract updateLighting(lighting:LightingState): void
 }
 
 /** Expected number of bytes in a GET response (7 bytes per wheel + 4 bytes of shared state). */
 const GET_RESPONSE_BYTES = wheelCount * 7 + 4
+
+/** The pattern identifiers in the order the firmware indexes them; the position in this list is the
+ * value carried on the wire. */
+const lightingPatternIndices = Object.keys(LightingPattern) as LightingPattern[]
 
 class DownLow extends DownLowBase {
   private serial: SerialPort | null = null
@@ -39,10 +45,13 @@ class DownLow extends DownLowBase {
   private reconnectScheduled = false
   // Callback invoked when the active port closes unexpectedly, so in-flight get() can reject.
   private onPortClose: ((port: SerialPort) => void) | null = null
+  // The lighting state most recently given by the application, re-sent periodically by resendLighting().
+  private lighting: LightingState | null = null
 
   constructor () {
     super()
     this.connect()
+    this.resendLighting()
   }
 
   /** Load SerialPort class and begin initial connection attempt. */
@@ -264,6 +273,30 @@ class DownLow extends DownLowBase {
     this.send(data)
   }
 
+  /** Send the lighting levels and pattern to the downlow MCU. */
+  updateLighting (lighting:LightingState) {
+    // Held even while disconnected, so that the periodic re-send restores the strip once it reconnects.
+    this.lighting = lighting
+    if (!this.isConnected()) return
+    const data = [Command.Lighting]
+    // 1 byte each for the white and red, green and blue (RGB) levels, as indices into the
+    // intensity scale.
+    data.push(lighting.whiteLevel & 0xff)
+    data.push(lighting.rgbLevel & 0xff)
+    // 1 byte for the pattern, as its index in LightingPattern.
+    data.push(lightingPatternIndices.indexOf(lighting.pattern) & 0xff)
+    this.send(data)
+  }
+
+  /** Re-sends the lighting state every lightingResendInterval, so that the strip re-syncs after a
+   * reconnect without the operator touching anything. The lighting state is not covered by the
+   * downlow watchdog, so the re-send exists only to recover from a lost connection.
+   */
+  private resendLighting () {
+    if (this.lighting) this.updateLighting(this.lighting)
+    setTimeout(() => this.resendLighting(), lightingResendInterval)
+  }
+
   private send (data:number[]) {
     this.serial.write(Buffer.from(data))
   }
@@ -275,6 +308,7 @@ class DownLowSimulated extends DownLowBase {
   private wheels:WheelTelemetry[] = _.range(wheelCount).map(getWheelTelemetryTemplate)
   private emergencyStopTriggered = false
   private batteryVoltage = 13.0
+  private lighting:LightingState = { whiteLevel: 0, rgbLevel: 0, pattern: LightingPattern.SOLID }
 
   isConnected = () => true
 
@@ -293,6 +327,13 @@ class DownLowSimulated extends DownLowBase {
       this.wheels[wi].ready = true
     }
   }
+
+  updateLighting (lighting:LightingState) {
+    this.lighting = lighting
+  }
+
+  /** The lighting state the simulated strip is showing. */
+  getLighting = () => this.lighting
 }
 
 /**

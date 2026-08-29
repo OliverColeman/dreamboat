@@ -31,7 +31,14 @@ const useStyles = makeStyles<Theme>((theme) => ({
   simulationMode: () => ({
     color: theme.palette.info.main,
     position: 'absolute',
-    top: '5%',
+    // Below the lighting controls, which sit at the top centre and occupy the top 64 pixels of the
+    // window: a 56 pixel row of buttons plus 4 pixels of padding either side. That height is fixed
+    // in pixels, so this offset is in pixels too rather than a proportion of the window. This text
+    // is 66 pixels tall, being a 32 pixel font on the line height of 1.43 that CssBaseline gives
+    // the body, plus 10 pixels of padding either side; translate(-50%,-50%) centres it on the
+    // offset, so its top edge sits 33 pixels above it. 110 therefore starts the text at 77 pixels,
+    // clearing the row by 13 pixels at every window size the application runs at.
+    top: 110,
     left: '50%',
     padding: '10px',
     backgroundColor: theme.palette.background.default,

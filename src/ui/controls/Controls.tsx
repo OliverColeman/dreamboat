@@ -4,6 +4,7 @@ import { Button, makeStyles } from '@material-ui/core'
 
 import { vehicleState, appDimensionsState } from '../../model/state'
 import DriveModeSelector from './DriveModeSelector'
+import LightingControls from './LightingControls'
 import { joystick0, joystick1, controlType, controlVisualSize } from '../../settings'
 import { Controls2D, AppDimensionStyleProps } from '../../model/types'
 import Joystick from './Joystick'
@@ -21,6 +22,16 @@ const useStyles = makeStyles((theme) =>
       position: 'absolute',
       top: 0,
       right: 0,
+      zIndex: 10,
+    }),
+    lighting: ({ appDimensions }:AppDimensionStyleProps) => ({
+      position: 'absolute',
+      top: 0,
+      // Centred between the joysticks (or the keypad and mouse pad), which occupy controlVisualSize
+      // pixels at each top corner.
+      left: '50%',
+      transform: 'translate(-50%, 0)',
+      maxWidth: `calc(100% - ${2 * (controlVisualSize + 16)}px)`,
       zIndex: 10,
     }),
     driveMode: ({ appDimensions }:AppDimensionStyleProps) => ({
@@ -107,6 +118,9 @@ export default function Controls () {
           ? <Joystick id={Controls2D.MOTION_1} {...joystick1} />
           : <MousePad id={Controls2D.MOTION_1} />
         }
+      </div>
+      <div className={classes.lighting}>
+        <LightingControls />
       </div>
       <div className={classes.driveMode}>
         <DriveModeSelector />

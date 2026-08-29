@@ -114,3 +114,18 @@ export const downlowMcuSerialNumber = '11692050'
 
 /** Time between updating the telemetry of the downlow MCU, in ms. */
 export const downlowTelemetryUpdateInterval = 1000 / frameRate
+
+/** Number of levels on the lighting intensity scale, for both the white and the red, green and blue
+ * (RGB) channels. Level 0 is off and level `lightingLevelCount - 1` is full brightness.
+ * Stevens' power law puts the exponent for perceived brightness at about 1/3, so the steps are evenly
+ * spaced in perceived brightness only if the physical intensity rises as the cube of the level. That
+ * conversion belongs to the firmware: the wire carries the level index and the interface displays the
+ * index itself, whose even spacing is the point of a perceptual scale.
+ */
+export const lightingLevelCount = 10
+
+/** Time between re-sends of the lighting state to the downlow MCU, in ms.
+ * The lighting state is also sent whenever it changes; the re-send re-syncs the strip after a
+ * reconnect without the operator touching anything.
+ */
+export const lightingResendInterval = 1000
