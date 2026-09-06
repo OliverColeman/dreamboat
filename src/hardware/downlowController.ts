@@ -9,6 +9,7 @@ import { normaliseAngle, normaliseValueToRange, rad2Deg } from '../util'
 enum Command {
   Set = 83, // 'S'
   Get = 71, // 'G'
+  Home = 72, // 'H'
   Lighting = 76, // 'L'
 }
 
@@ -30,6 +31,7 @@ abstract class DownLowBase {
   abstract get(): Promise<Partial<DownLowTelemetry>>
   abstract updateWheelAnglesAndDriveRate(newWheelState:WheelState[]): void
   abstract updateLighting(lighting:LightingState): void
+  abstract declareWheelsAtHome(): void
 }
 
 /** Expected number of bytes in a GET response (7 bytes per wheel + 4 bytes of shared state). */
@@ -273,6 +275,16 @@ class DownLow extends DownLowBase {
     this.send(data)
   }
 
+  /** Tell the downlow MCU that every wheel is sitting at its home position, so that it takes the
+   * current position as the home reference and treats the wheel as knowing where it is.
+   * This is a fallback for a home switch that does not read reliably. The MCU honours it only while
+   * the emergency stop is engaged, which is also the only time the interface offers it.
+   */
+  declareWheelsAtHome () {
+    if (!this.isConnected()) return
+    this.send([Command.Home])
+  }
+
   /** Send the lighting levels and pattern to the downlow MCU. */
   updateLighting (lighting:LightingState) {
     // Held even while disconnected, so that the periodic re-send restores the strip once it reconnects.
@@ -324,6 +336,13 @@ class DownLowSimulated extends DownLowBase {
     for (let wi = 0; wi < wheelCount; wi++) {
       this.wheels[wi].angle = newWheelState[wi].angle
       this.wheels[wi].driveRate = newWheelState[wi].speed / maxVehicleSpeed
+      this.wheels[wi].ready = true
+    }
+  }
+
+  declareWheelsAtHome () {
+    for (let wi = 0; wi < wheelCount; wi++) {
+      this.wheels[wi].angle = 0
       this.wheels[wi].ready = true
     }
   }

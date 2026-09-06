@@ -43,13 +43,13 @@ export const maxWheelSteerRPS = 1.0 // 1 revolution per second
  * wheels; at or beyond this difference the vehicle is stationary.
  * This is a ride-quality choice, independent of how fast the wheels can steer (`maxWheelSteerRPS`).
  */
-export const wheelAngleToleranceForFullSpeed = deg2Rad(15)
+export const wheelAngleToleranceForFullSpeed = deg2Rad(30)
 
 /** How much the steering curvature (reciprocal of the distance to the pivot point) may change per second.
  * This limits how quickly the pivot point may be moved towards or away from the vehicle, and how quickly it
  * may move from one side of the vehicle to the other (passing through "straight ahead" on the way).
  */
-export const maxCurvatureDeltaPerSecond = 1 / 500
+export const maxCurvatureDeltaPerSecond = 1 / 1000
 
 /** Scaling of visualisation, in pixels/mm */
 export const visualScale = 0.125 // px/mm
