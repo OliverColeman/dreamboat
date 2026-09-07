@@ -45,3 +45,8 @@ Running it so it communicates with the real downlow controller to drive the actu
 Running it with simulated hardware:
 
 `./sim.sh`
+
+In simulation the keypad (`w`, `a`, `s`, `d`, `x`) and the mouse pad stand in for the first and
+second joystick respectively. The `e` key engages and disengages the emergency stop, which on the
+vehicle is a switch wired to the downlow controller; while it is engaged the wheels neither steer
+nor drive and an `! E-Stop !` overlay is shown.

@@ -34,18 +34,25 @@ const useStyles = makeStyles<Theme>((theme) => ({
     // Below the lighting controls, which sit at the top centre and occupy the top 64 pixels of the
     // window: a 56 pixel row of buttons plus 4 pixels of padding either side. That height is fixed
     // in pixels, so this offset is in pixels too rather than a proportion of the window. This text
-    // is 66 pixels tall, being a 32 pixel font on the line height of 1.43 that CssBaseline gives
-    // the body, plus 10 pixels of padding either side; translate(-50%,-50%) centres it on the
-    // offset, so its top edge sits 33 pixels above it. 110 therefore starts the text at 77 pixels,
-    // clearing the row by 13 pixels at every window size the application runs at.
-    top: 110,
+    // is 89 pixels tall, being a 32 pixel line above a 16 pixel one, both on the line height of
+    // 1.43 that CssBaseline gives the body, plus 10 pixels of padding either side;
+    // translate(-50%,-50%) centres it on the offset, so its top edge sits 45 pixels above it. 120
+    // therefore starts the text at 75 pixels, clearing the row by 11 pixels at every window size
+    // the application runs at.
+    top: 120,
     left: '50%',
     padding: '10px',
     backgroundColor: theme.palette.background.default,
     transform: 'translate(-50%,-50%)',
     zIndex: 0,
     fontSize: '32px',
+    // The block is as wide as its longer line, so the shorter one is centred across that width.
+    textAlign: 'center',
     opacity: 0.5,
+  }),
+  /** The emergency stop key, named under the heading and set smaller than it. */
+  simulationModeKey: () => ({
+    fontSize: '16px',
   }),
 }))
 
@@ -90,6 +97,10 @@ export default function Visualisation () {
 
       { simulationMode && <div className={classes.simulationMode}>
         SIMULATION MODE
+        { /* Simulation has no emergency stop switch to look at, and engaging the stop leaves an
+             overlay across the screen that only the same key clears, so the key is named where the
+             operator is already looking. */ }
+        <div className={classes.simulationModeKey}>Press e to engage or disengage the emergency stop</div>
       </div> }
 
       <Stage width={width} height={height} scaleX={scale} scaleY={scale} offsetX={-widthScaled / 2} offsetY={-heightScaled / 2}>

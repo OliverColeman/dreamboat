@@ -326,13 +326,24 @@ class DownLowSimulated extends DownLowBase {
 
   getLastError = () => this.lastError
 
+  /** The telemetry of one poll. Each wheel is copied out, so that every field of a poll comes from
+   * one instant, as it does on the vehicle where the downlow MCU assembles a whole Get reply in a
+   * single pass. Handing out the live array instead would let the wheel fields move on while the
+   * emergency stop flag beside them stayed as the poll found it.
+   */
   get = async () => ({
-    wheels: this.wheels,
+    wheels: this.wheels.map(wheel => ({ ...wheel })),
     emergencyStopTriggered: this.emergencyStopTriggered,
     batteryVoltage: this.batteryVoltage,
   })
 
+  /** Take on the given wheel angles and drive rates.
+   * Nothing is taken on while the emergency stop is engaged: the downlow MCU stores the angles and
+   * rates a Set command carries but acts on none of them until the stop is released, so the wheels
+   * neither steer nor drive and go on reporting the positions they are already at.
+   */
   updateWheelAnglesAndDriveRate (newWheelState:WheelState[]) {
+    if (this.emergencyStopTriggered) return
     for (let wi = 0; wi < wheelCount; wi++) {
       this.wheels[wi].angle = newWheelState[wi].angle
       this.wheels[wi].driveRate = newWheelState[wi].speed / maxVehicleSpeed
@@ -340,7 +351,13 @@ class DownLowSimulated extends DownLowBase {
     }
   }
 
+  /** Take every wheel to be sitting at its home position, so that it knows where it is.
+   * Acted on only while the emergency stop is engaged, matching the downlow MCU, which refuses it
+   * at any other time because a wheel that knows where it is steers to its target angle as soon as
+   * the motors are live.
+   */
   declareWheelsAtHome () {
+    if (!this.emergencyStopTriggered) return
     for (let wi = 0; wi < wheelCount; wi++) {
       this.wheels[wi].angle = 0
       this.wheels[wi].ready = true
@@ -353,6 +370,29 @@ class DownLowSimulated extends DownLowBase {
 
   /** The lighting state the simulated strip is showing. */
   getLighting = () => this.lighting
+
+  /** Engage the emergency stop if it is disengaged, and disengage it if it is engaged.
+   * The field flipped is the one get() reports, so the stop reaches the rest of the application by
+   * the telemetry path the emergency stop switch of the vehicle reaches it by.
+   * Engaging it stops the motors, which the downlow MCU does within one of its 20 ms wheel updates:
+   * the drive and steering rates fall to zero, and so do the currents the motors draw. Of those
+   * four the drive rate is the only one this class reports as anything but zero at any time, so the
+   * other three assignments record where the stopped values belong rather than change what is
+   * shown. The wheel angles are left where they are, because a stopped wheel reports the position
+   * its encoder reads rather than the position it was asked for. The stuck times and the steering
+   * motor driver fault flags are left alone for the opposite reason: the MCU recalculates them only
+   * while the motors run, so they hold their last values for as long as the stop is engaged.
+   */
+  toggleEmergencyStop () {
+    this.emergencyStopTriggered = !this.emergencyStopTriggered
+    if (!this.emergencyStopTriggered) return
+    for (let wi = 0; wi < wheelCount; wi++) {
+      this.wheels[wi].driveRate = 0
+      this.wheels[wi].steeringRate = 0
+      this.wheels[wi].driveCurrent = 0
+      this.wheels[wi].steeringCurrent = 0
+    }
+  }
 }
 
 /**
@@ -361,6 +401,15 @@ class DownLowSimulated extends DownLowBase {
  * In future it may provide for other things, such as lights and collision avoidance sensors.
  */
 export const downlowController = simulationMode ? new DownLowSimulated() : new DownLow()
+
+/** Engage the simulated emergency stop if it is disengaged, and disengage it if it is engaged.
+ * Only the simulated downlow controller has an emergency stop to toggle. That of the vehicle is a
+ * switch wired to the downlow MCU, which reports the position of the switch in its telemetry and
+ * takes no command to change it, so with the real controller in use this does nothing.
+ */
+export const toggleSimulatedEmergencyStop = () => {
+  if (downlowController instanceof DownLowSimulated) downlowController.toggleEmergencyStop()
+}
 
 const downlowTelemetry:DownLowTelemetry = {
   isConnected: false,

@@ -6,10 +6,11 @@ import { downlowController } from '../../hardware/downlowController'
 import { vehicleState, appDimensionsState } from '../../model/state'
 import DriveModeSelector from './DriveModeSelector'
 import LightingControls from './LightingControls'
-import { joystick0, joystick1, controlType, controlVisualSize } from '../../settings'
+import { joystick0, joystick1, controlType, controlVisualSize, simulationMode } from '../../settings'
 import { Controls2D, AppDimensionStyleProps } from '../../model/types'
 import Joystick from './Joystick'
 import { KeyPad, MousePad } from './ControlPad'
+import SimulatedEmergencyStopKey from './SimulatedEmergencyStopKey'
 
 const useStyles = makeStyles((theme) =>
   ({
@@ -132,6 +133,7 @@ export default function Controls () {
 
   return (
     <div className="Controls">
+      { simulationMode && <SimulatedEmergencyStopKey /> }
       <div className={classes.leftControl}>
         { controlType === 'joystick'
           ? <Joystick id={Controls2D.MOTION_0} {...joystick0} />
