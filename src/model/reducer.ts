@@ -40,7 +40,12 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       vehicle.pivotCurvature = 0
       vehicle.speedPredicted = 0
       vehicle.rpmPredicted = 0
-    } else if (control2d.some(c => c.r > movementMagnitudeThreshold)) {
+    } else if (
+      control2d.some(c => c.r > movementMagnitudeThreshold)
+      // With the controls centred drive my car steers back to straight ahead, which takes several
+      // iterations, so keep updating until the pivot point has got there.
+      || (mode === DriveMode.DRIVE_MY_CAR && vehicle.pivotCurvature !== 0)
+    ) {
       const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted: currentRotationPredicted } = vehicle
 
       // For DAY_TRIPPER and HELTER_SKELTER mode,
@@ -48,7 +53,8 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       const pivotAngle = control2d[0].a + pi / 2
 
       // How fast the vehicle should move as a proportion of the maximum speed, range is [-1, 1].
-      const travelRate = mode === DriveMode.DRIVE_MY_CAR ? control2d[0].y : control2d[0].r
+      const travelInput = mode === DriveMode.DRIVE_MY_CAR ? control2d[0].y : control2d[0].r
+      const travelRate = Math.abs(travelInput) > movementMagnitudeThreshold ? travelInput : 0
       // How far the vehicle will move this step, in mm.
       const travelDelta = travelRate * maxDeltaPerFrame
 
@@ -86,7 +92,8 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
         // Curvature is continuous through zero, which is straight ahead (an infinitely distant pivot point),
         // so the pivot point moves from one side of the vehicle to the other by way of straight ahead
         // rather than by way of the vehicle centre, and nothing about the motion is discontinuous.
-        const curvatureTarget = control2d[1].x / (DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_TURNING_MIN)
+        const steeringInput = Math.abs(control2d[1].x) > movementMagnitudeThreshold ? control2d[1].x : 0
+        const curvatureTarget = steeringInput / (DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_TURNING_MIN)
         const curvature = constrainRange(
           curvatureTarget,
           vehicle.pivotCurvature - maxCurvatureDeltaPerFrame,
