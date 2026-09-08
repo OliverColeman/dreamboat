@@ -6,6 +6,7 @@ import { driveModeState, vehicleState, control2DFamily } from './state'
 import { Controls2D } from './types'
 import { updateVehicleState } from './reducer'
 import { getTelemetry } from '../hardware/telemetry'
+import { appendTelemetryLogRow } from '../hardware/telemetryLog'
 
 /**
  * Iteratively updates the vehicle state (as stored in recoil state) `frameRate` times per second.
@@ -24,6 +25,9 @@ function UpdateStateLoop () {
   return null
 }
 
+/** Counts iterations of the update loop, so that each contributes one telemetry log row. */
+let iteration = 0
+
 const updateVehicleStateWithCurrentControls = ({ snapshot, set }: CallbackInterface) => async () => {
   try {
     const mode = await snapshot.getPromise(driveModeState)
@@ -32,7 +36,15 @@ const updateVehicleStateWithCurrentControls = ({ snapshot, set }: CallbackInterf
       await snapshot.getPromise(control2DFamily(Controls2D.MOTION_1)),
     ]
 
-    set(vehicleState, updateVehicleState(mode, control2d, getTelemetry()))
+    const updateForThisIteration = updateVehicleState(mode, control2d, getTelemetry())
+    const thisIteration = ++iteration
+    // Updating through a function rather than a value so that a brake or reset applied from the
+    // controls between reading the state and writing it is not lost.
+    set(vehicleState, current => {
+      const updated = updateForThisIteration(current)
+      appendTelemetryLogRow(updated, control2d, mode, thisIteration)
+      return updated
+    })
   } catch (e) {
     console.log(e)
   }

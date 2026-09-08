@@ -44,6 +44,12 @@
     "rebuild": "electron-rebuild"
   },
   "homepage": "./",
+  "electronmon": {
+    "patterns": [
+      "!logs",
+      "!logs/**/*"
+    ]
+  },
   "main": "./public/electron.js",
   "browserslist": {
     "production": [

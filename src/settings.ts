@@ -115,6 +115,22 @@ export const downlowMcuSerialNumber = '11692050'
 /** Time between updating the telemetry of the downlow MCU, in ms. */
 export const downlowTelemetryUpdateInterval = 1000 / frameRate
 
+/** Whether to record a telemetry log, as a comma separated values (CSV) file with one row per
+ * iteration of the update loop. Intended for debugging.
+ * Off unless the environment variable `REACT_APP_ENABLE_LOG` is set to one of `envTruthyValues`,
+ * which `run.sh --enable-log` does.
+ */
+export const telemetryLogEnabled = envTruthyValues.includes(
+  (process.env.REACT_APP_ENABLE_LOG ?? '').trim().toLowerCase()
+)
+/** Directory the telemetry log files are written to, one file per run of the application.
+ * A relative path is relative to the directory the application is started from. Note that `run.sh`
+ * starts the application with `sudo`, so the files it writes are owned by root. */
+export const telemetryLogDirectory = 'logs'
+/** Time between writing recorded telemetry log rows to disk, in ms. Rows are held in memory in
+ * between, so up to this much of the log is lost if the vehicle loses power. */
+export const telemetryLogFlushInterval = 1000
+
 /** Number of levels on the lighting intensity scale, for both the white and the red, green and blue
  * (RGB) channels. Level 0 is off and level `lightingLevelCount - 1` is full brightness.
  * Stevens' power law puts the exponent for perceived brightness at about 1/3, so the steps are evenly
