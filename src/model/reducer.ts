@@ -12,13 +12,28 @@ const maxRotateAnglePerFrame = (maxRPS / frameRate) * pi * 2
 export const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
 /** Maximum amount the steering curvature can change per frame. */
 const maxCurvatureDeltaPerFrame = maxCurvatureDeltaPerSecond / frameRate
+/** The distance from the vehicle centre to the pivot point that travelling at full speed while
+ * spinning at the full rate describes, in mm: the vehicle covers `maxDeltaPerFrame` of arc while
+ * turning `maxRotateAnglePerFrame` about that point. Scaling it by how far the two controls are
+ * pushed gives the pivot point that delivers both the travel and the spin being asked for, so the
+ * spin rate no longer steps up as the travel control leaves its dead band.
+ *
+ * This is the arc-length radius. The rotation is worked out as `atan2(travelDelta, r)`, which puts
+ * `travelDelta` on the tangent instead, and the speed from the chord; those differ from the arc by a
+ * few hundredths of a percent, which is what leaves the `maxRotateAnglePerFrame` clamp just inactive
+ * with both controls at full.
+ *
+ * At high combined demand the outer wheels reach the maximum wheel speed, and the travel and the
+ * spin are then scaled back together, so the spin control is not authoritative there.
+ */
+const pivotRadiusAtFullTravelAndSpin = maxDeltaPerFrame / maxRotateAnglePerFrame
 
 /** The distance (from centre) of the pivot point when going "straight", in mm. */
 const PIVOT_RADIUS_HEADING_STRAIGHT = 100000000
-/** The minimum distance (from centre) of the pivot point when turning, in mm (at maximum speed for modes
- * other than drive my car, for example, for drive my car this is multiplied by DRIVE_MY_CAR_TURN_RATE_FACTOR).
+/** The distance from the vehicle centre to the pivot point at full lock in drive my car mode, in mm.
+ * It sets that mode's tightest turn, and is used by no other mode.
  */
-const PIVOT_RADIUS_TURNING_MIN = 1000
+const DRIVE_MY_CAR_PIVOT_RADIUS_AT_FULL_LOCK = 500
 /** The closest to the vehicle centre the pivot point search represents a pivot point, in mm.
  * A pivot point at the centre itself is a steering curvature of infinity, which the search cannot
  * interpolate towards, so it needs a finite stand-in; one millimetre from the centre is far inside
@@ -123,14 +138,11 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       const isTravelling = travelRate > movementMagnitudeThreshold
       const isTurning = turnRate > movementMagnitudeThreshold
 
-      const DRIVE_MY_CAR_TURN_RATE_FACTOR = 0.5
-
       // Polar coordinates for the pivot point (point to be rotated around).
       const pivotTargetPolar:Polar = {
         a: 0, // determined by control method.
-        r:
-          (mode === DriveMode.DRIVE_MY_CAR ? DRIVE_MY_CAR_TURN_RATE_FACTOR : travelRate)
-          * (isTurning ? PIVOT_RADIUS_TURNING_MIN / turnRate : PIVOT_RADIUS_HEADING_STRAIGHT),
+        r: travelRate
+          * (isTurning ? pivotRadiusAtFullTravelAndSpin / turnRate : PIVOT_RADIUS_HEADING_STRAIGHT),
       }
 
       // The direction the vehicle is being asked to travel in, as an angle relative to the vehicle.
@@ -174,7 +186,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
         // so the pivot point moves from one side of the vehicle to the other by way of straight ahead
         // rather than by way of the vehicle centre, and nothing about the motion is discontinuous.
         const steeringInput = Math.abs(control2d[1].x) > movementMagnitudeThreshold ? control2d[1].x : 0
-        const curvatureTarget = steeringInput / (DRIVE_MY_CAR_TURN_RATE_FACTOR * PIVOT_RADIUS_TURNING_MIN)
+        const curvatureTarget = steeringInput / DRIVE_MY_CAR_PIVOT_RADIUS_AT_FULL_LOCK
         const curvature = constrainRange(
           curvatureTarget,
           vehicle.pivotCurvature - maxCurvatureDeltaPerFrame,
