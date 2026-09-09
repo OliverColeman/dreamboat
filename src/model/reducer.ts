@@ -1,9 +1,8 @@
 import produce from 'immer'
-import Flatten from '@flatten-js/core'
 import _ from 'lodash'
 
 import { movementMagnitudeThreshold, maxVehicleSpeed, maxRPS, wheelPositions, maxWheelSteerRPS, frameRate, wheelPivotDistanceDiscountDistance, wheelAngleToleranceForFullSpeed, maxCurvatureDeltaPerSecond } from '../settings'
-import { constrainRange, getCoordFromPolar, getCoordFromPoint, indexOfMaximum, normaliseAngle, vecLen } from '../util'
+import { constrainRange, deg2Rad, getCoordFromPolar, normaliseAngle, vecLen } from '../util'
 import { Coord, Point, Polar, VehicleState, WheelState, DriveMode, Vec2, Telemetry, WheelTelemetry } from './types'
 
 const pi = Math.PI
@@ -13,6 +12,54 @@ const maxRotateAnglePerFrame = (maxRPS / frameRate) * pi * 2
 export const maxWheelSteerDeltaPerFrame = (maxWheelSteerRPS * pi * 2) / frameRate
 /** Maximum amount the steering curvature can change per frame. */
 const maxCurvatureDeltaPerFrame = maxCurvatureDeltaPerSecond / frameRate
+
+/** The distance (from centre) of the pivot point when going "straight", in mm. */
+const PIVOT_RADIUS_HEADING_STRAIGHT = 100000000
+/** The minimum distance (from centre) of the pivot point when turning, in mm (at maximum speed for modes
+ * other than drive my car, for example, for drive my car this is multiplied by DRIVE_MY_CAR_TURN_RATE_FACTOR).
+ */
+const PIVOT_RADIUS_TURNING_MIN = 1000
+/** The closest to the vehicle centre the pivot point search represents a pivot point, in mm.
+ * A pivot point at the centre itself is a steering curvature of infinity, which the search cannot
+ * interpolate towards, so it needs a finite stand-in; one millimetre from the centre is far inside
+ * the wheelbase and gives wheel angles within a twentieth of a degree of those for the centre.
+ */
+const PIVOT_RADIUS_SEARCH_MIN = 1
+/** How many times the pivot point search may halve the fraction it is trying before giving up and
+ * leaving the pivot point where it is. The fraction the wheels can reach is not always a large one:
+ * a pivot point being brought in from far ahead to the vehicle centre, which is how the other two
+ * drive modes start spinning on the spot, covers nearly all of that ground in the first thousandth
+ * of the way, so the search has to be able to reach fractions that small. Twenty halvings reach one
+ * part in a million.
+ */
+const PIVOT_SEARCH_DESCENT_STEPS = 20
+/** How many times the pivot point search halves the bracket the descent above ends up with. The
+ * descent leaves the largest reachable fraction known to within a factor of two; eight more halvings
+ * bring that to within a quarter of a percent of it, which at the most the wheels can turn in one
+ * frame is a twentieth of a degree of steering given up.
+ */
+const PIVOT_SEARCH_REFINE_STEPS = 8
+/** How close to straight ahead every commanded wheel angle has to be for the steering to count as
+ * centred. */
+const WHEEL_STRAIGHT_TOLERANCE = deg2Rad(0.5)
+/** How far a commanded wheel angle has to move in one frame for the steering to count as still
+ * moving. */
+const STEERING_PROGRESS_TOLERANCE = deg2Rad(0.05)
+/** For how many consecutive frames the steering has to fail to move before it is taken to be as
+ * straight as it is going to get. A wheel that cannot turn holds the whole steering geometry off
+ * straight, and no amount of further asking will move it, so the wait for straight ahead gives up
+ * after this many frames. Telemetry arrives less often than frames do, which by itself holds the
+ * commanded angles still for two or three frames at a time, so this is set well above that.
+ */
+const STEERING_STALL_FRAMES = frameRate
+
+/**
+ * Whether every wheel is commanded to point straight ahead. A wheel points along a line rather than
+ * in a direction, so a wheel commanded to 180 degrees is as straight as one commanded to 0; the
+ * angle is doubled before it is normalised, which folds the two ends of the wheel together.
+ */
+const steeringIsStraight = (wheels: WheelState[]) =>
+  wheels.every(w => Math.abs(normaliseAngle(w.angle * 2)) / 2 <= WHEEL_STRAIGHT_TOLERANCE)
 
 /**
  * Calculates new positions/angles and speeds for each wheel based on the control inputs and selected driving mode.
@@ -27,6 +74,8 @@ const maxCurvatureDeltaPerFrame = maxCurvatureDeltaPerSecond / frameRate
  */
 export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetry:Telemetry) =>
   produce((vehicle: VehicleState) => {
+    /** Whether either control is being asked for anything. */
+    const controlsAreActive = control2d.some(c => c.r > movementMagnitudeThreshold)
     if (vehicle.brakeEnabled) {
       const wheelBrakePositions = vehicle.wheelsNext.map((w, wi) => ({
         angle: (wi === 0 || wi === 3 ? -1 : 1) * pi / 4,
@@ -40,11 +89,19 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       vehicle.pivotCurvature = 0
       vehicle.speedPredicted = 0
       vehicle.rpmPredicted = 0
+      vehicle.steeringStalledFrames = 0
     } else if (
-      control2d.some(c => c.r > movementMagnitudeThreshold)
+      controlsAreActive
       // With the controls centred drive my car steers back to straight ahead, which takes several
-      // iterations, so keep updating until the pivot point has got there.
-      || (mode === DriveMode.DRIVE_MY_CAR && vehicle.pivotCurvature !== 0)
+      // iterations, so keep updating until it has got there. The steering curvature is slew limited
+      // and the wheels are limited by how fast they can turn, and the wheels are the slower of the
+      // two, so the curvature reaching zero says only that the vehicle has been asked to go
+      // straight, not that it is pointing that way: the wheels have to be commanded straight too.
+      // A wheel that cannot turn would hold that off for ever, so the wait also gives up once the
+      // steering has stopped moving.
+      || (mode === DriveMode.DRIVE_MY_CAR
+        && (vehicle.pivotCurvature !== 0
+          || (!steeringIsStraight(vehicle.wheelsNext) && (vehicle.steeringStalledFrames || 0) < STEERING_STALL_FRAMES)))
     ) {
       const { centreAbs: { x: xAbs, y: yAbs }, rotationPredicted: currentRotationPredicted } = vehicle
 
@@ -67,11 +124,6 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
       const isTurning = turnRate > movementMagnitudeThreshold
 
       const DRIVE_MY_CAR_TURN_RATE_FACTOR = 0.5
-      // The distance (from centre) of the pivot point when going "straight", in mm.
-      const PIVOT_RADIUS_HEADING_STRAIGHT = 100000000
-      // The minimum distance (from centre) of the pivot point when turning, in mm (at maximum speed for modes
-      // other than drive my car, for example, for drive my car this is multiplied by DRIVE_MY_CAR_TURN_RATE_FACTOR).
-      const PIVOT_RADIUS_TURNING_MIN = 1000
 
       // Polar coordinates for the pivot point (point to be rotated around).
       const pivotTargetPolar:Polar = {
@@ -81,8 +133,37 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
           * (isTurning ? PIVOT_RADIUS_TURNING_MIN / turnRate : PIVOT_RADIUS_HEADING_STRAIGHT),
       }
 
-      // The amount the vehicle will rotate around the pivot point, in radians.
-      let rotation = 0 // determined by control method.
+      // The direction the vehicle is being asked to travel in, as an angle relative to the vehicle.
+      // DRIVE_MY_CAR travels along the vehicle's own axis; the other two modes take the direction
+      // from the first control, which DAY_TRIPPER reads as an absolute bearing and HELTER_SKELTER as
+      // one relative to the vehicle.
+      const travelDirection = mode === DriveMode.DAY_TRIPPER
+        ? control2d[0].a - currentRotationPredicted
+        : mode === DriveMode.HELTER_SKELTER
+          ? control2d[0].a
+          : pi / 2
+
+      /**
+       * How far the vehicle turns about a given pivot point in this time step, in radians, when it
+       * is being asked to travel rather than to spin on the spot.
+       *
+       * The vehicle centre travels `travelDelta` along its arc whichever pivot point is used, so the
+       * angle subtended at the pivot point depends on how far away that pivot point is: rotating
+       * about a nearer or farther pivot point by the angle worked out for some other pivot point
+       * would move the vehicle at some other speed than the speed asked for.
+       *
+       * Which way the vehicle turns follows from which side of the direction of travel the pivot
+       * point lies on: the vehicle centre moves at right angles to the line joining it to the pivot
+       * point, so a pivot point to one side gives forward travel for one direction of rotation and a
+       * pivot point to the other side for the other. Reading the side off the pivot point being used
+       * rather than the one asked for keeps travel in the direction asked for while the pivot point
+       * is passing from one side of the vehicle to the other.
+       */
+      const travelRotationForPivot = (pivot:Coord) =>
+        Math.atan2(travelDelta, pivot.r) * (Math.sign(Math.sin(pivot.a - travelDirection)) || 1)
+
+      // The amount the vehicle will rotate about a given pivot point, in radians.
+      let rotationForPivot: (pivot:Coord) => number = () => 0
 
       if (mode === DriveMode.DRIVE_MY_CAR) {
         // Control0 y determines forward/backward speed, control1 x determines turn rate and direction.
@@ -105,16 +186,13 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
         pivotTargetPolar.a = pivotIsToTheRight ? 0 : pi
         pivotTargetPolar.r = Math.min(1 / Math.abs(curvature), PIVOT_RADIUS_HEADING_STRAIGHT)
 
-        // The vehicle rotates one way about a pivot point to its right and the other way about a pivot
-        // point to its left, so the direction of rotation follows the side the pivot point is on.
-        rotation = Math.atan2(travelDelta, pivotTargetPolar.r) * (pivotIsToTheRight ? -1 : 1)
+        rotationForPivot = travelRotationForPivot
       } else if (mode === DriveMode.DAY_TRIPPER) {
         // control0 determines absolute direction, control1 spin rate.
         pivotTargetPolar.a = pivotAngle - currentRotationPredicted + (control2d[1].x >= 0 ? 0 : -pi)
-        rotation = !isTravelling
-          ? turnDelta * Math.sign(control2d[1].x)
-          : Math.atan2(travelDelta, pivotTargetPolar.r)
-              * (Math.sign(control2d[1].x) || 1)
+        rotationForPivot = !isTravelling
+          ? () => turnDelta * Math.sign(control2d[1].x)
+          : travelRotationForPivot
       } else if (mode === DriveMode.HELTER_SKELTER) {
         // control0 determines relative direction, control1 spin rate and pivot point.
         // Need a threshold on the magnitude so the pivot angle doesn't fluctuate wildly when the stick isn't being moved.
@@ -122,13 +200,13 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
         const relativePivotX = (control2d[1].r > 0.1 ? control2d[1].x : 0)
 
         pivotTargetPolar.a = pivotAngle + relativePivotAngle
-        rotation = !isTravelling
-          ? turnDelta * Math.sign(relativePivotX)
-          : Math.atan2(travelDelta, pivotTargetPolar.r)
-              * (Math.sign(relativePivotX) || 1)
+        rotationForPivot = !isTravelling
+          ? () => turnDelta * Math.sign(relativePivotX)
+          : travelRotationForPivot
       }
 
-      rotation = constrainRange(rotation, -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
+      const boundedRotationForPivot = (pivot:Coord) =>
+        constrainRange(rotationForPivot(pivot), -maxRotateAnglePerFrame, maxRotateAnglePerFrame)
 
       pivotTargetPolar.a = normaliseAngle(pivotTargetPolar.a)
 
@@ -140,7 +218,7 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
         rotationAchievable, // Achievable amount of rotation around pivotAchievable this time step, rad/sec
         achievableWheelState, // Actual wheel angles we're aiming to achieve this time step.
         targetWheelState, // The current target wheel state (if no restrictions on wheel turn rate).
-      } = updateWheels(vehicle, pivotTarget, rotation, telemetry.downlow.wheels)
+      } = updateWheels(vehicle, pivotTarget, boundedRotationForPivot, telemetry.downlow.wheels)
 
       // Cartesian coordinates for the pivot point.
       // Absolute to vehicle rotation, relative to vehicle position.
@@ -154,6 +232,18 @@ export const updateVehicleState = (mode: DriveMode, control2d: Coord[], telemetr
         x: pivotAbs.x - pivotAbs.x * Math.cos(rotationAchievable) + pivotAbs.y * Math.sin(rotationAchievable),
         y: pivotAbs.y - pivotAbs.x * Math.sin(rotationAchievable) - pivotAbs.y * Math.cos(rotationAchievable),
       }
+
+      // Whether the steering is still moving. A wheel that cannot turn pins the pivot point where it
+      // is, and the wheel angles with it, and there is then nothing further to wait for. Only the
+      // wait for straight ahead gives up on a wheel like that, so the count runs only while the
+      // controls are centred; the steering also sits still while a steady lock is being held, and
+      // that says nothing about whether a wheel can turn.
+      const steeringIsMoving = achievableWheelState.some((ws, wi) =>
+        Math.abs(normaliseAngle(ws.angle - vehicle.wheelsNext[wi].angle)) > STEERING_PROGRESS_TOLERANCE)
+      vehicle.steeringStalledFrames
+        = controlsAreActive || steeringIsMoving || telemetry.downlow.emergencyStopTriggered
+          ? 0
+          : (vehicle.steeringStalledFrames || 0) + 1
 
       // Update relative state variables.
       vehicle.pivot = pivotAchievable
@@ -192,139 +282,166 @@ type NewWheelStateInfo = {
 }
 
 /**
+ * A pivot point written as a steering curvature: the pivot point divided by the square of its
+ * distance from the vehicle centre, so that it points the same way as the pivot point and is as long
+ * as the reciprocal of the distance to it. The map is its own inverse. It takes a pivot point
+ * infinitely far away to zero and one at the vehicle centre to infinity, so a straight line drawn in
+ * it goes from one side of the vehicle to the other by way of straight ahead and never crosses the
+ * vehicle, which is the way the steering itself goes.
+ *
+ * Distances outside the range the pivot point is ever placed at are brought into it, so that
+ * straight ahead and the vehicle centre both have a finite curvature to interpolate between.
+ */
+const curvatureFromPivot = (pivot:Coord):Vec2 => {
+  const distance = constrainRange(pivot.r, PIVOT_RADIUS_SEARCH_MIN, PIVOT_RADIUS_HEADING_STRAIGHT)
+  return { x: Math.cos(pivot.a) / distance, y: Math.sin(pivot.a) / distance }
+}
+
+/**
+ * The pivot point for a steering curvature, the inverse of `curvatureFromPivot`.
+ * A curvature of zero is straight ahead, where the pivot point is infinitely far away and which side
+ * of the vehicle it is on is no longer written in the curvature; `angleWhenStraight` says which side
+ * to take it as being on there.
+ */
+const pivotFromCurvature = (curvature:Vec2, angleWhenStraight:number):Coord => {
+  const magnitude = vecLen(curvature.x, curvature.y)
+  return getCoordFromPolar(
+    magnitude <= 1 / PIVOT_RADIUS_HEADING_STRAIGHT
+      ? { r: PIVOT_RADIUS_HEADING_STRAIGHT, a: magnitude > 0 ? Math.atan2(curvature.y, curvature.x) : angleWhenStraight }
+      : { r: 1 / magnitude, a: Math.atan2(curvature.y, curvature.x) }
+  )
+}
+
+/**
  * Determine new wheel angles and speeds for the given target pivot point.
+ *
+ * The wheels can only turn so far in one time step, so the target pivot point is not always one they
+ * can be aimed at straight away. Where it is not, the pivot point actually used is somewhere between
+ * the one the wheels are currently held at and the one being asked for, and the job here is to find
+ * the furthest along that way the wheels can reach. "Between" is measured as steering curvature
+ * rather than as position, so that a pivot point moving from one side of the vehicle to the other
+ * goes out towards infinity and comes back on the other side, which is the path the steering takes,
+ * instead of straight across the wheelbase, which no steering geometry passes through.
+ *
+ * How far the wheels have to turn does not have to fall away smoothly along that path, so the
+ * halving search is not guaranteed to find the very furthest reachable point; it finds one that is
+ * reachable, and where it stops short it stops short on the safe side, asking the wheels for less
+ * than they could have done and picking up the rest on the following frame.
+ *
  * @param vehicleState Current vehicle state.
  * @param targetPivot The target pivot point, relative to current vehicle rotation and position.
- * @param targetRotationDelta The amount the vehicle is to rotate around the target pivot point, in radians. Used to determine wheel speeds.
+ * @param rotationForPivot The amount the vehicle is to rotate about a given pivot point, in radians. Used to determine wheel speeds.
  */
-function updateWheels (vehicleState:VehicleState, targetPivot:Coord, targetRotationDelta:number, wheelTelemetry:WheelTelemetry[]): NewWheelStateInfo {
+function updateWheels (vehicleState:VehicleState, targetPivot:Coord, rotationForPivot:(pivot:Coord) => number, wheelTelemetry:WheelTelemetry[]): NewWheelStateInfo {
   const { wheelsNext: wheels, pivot: currentPivot } = vehicleState
 
-  // Determine closest achievable pivot point to desired from current.
+  const curvatureCurrent = curvatureFromPivot(currentPivot)
+  // A pivot point at the vehicle centre has no direction to it: spinning about a point a hair to one
+  // side of the centre is the same manoeuvre as spinning about a point a hair to the other, and the
+  // two drive modes that spin on the spot ask for the centre exactly. Give it the direction the
+  // pivot point already has, so that the search brings the pivot point straight in rather than
+  // carrying it round the vehicle to arrive from a direction that means nothing.
+  const curvatureTarget = curvatureFromPivot(
+    targetPivot.r < PIVOT_RADIUS_SEARCH_MIN ? { ...targetPivot, a: currentPivot.a } : targetPivot)
 
-  let pivotAchievable = targetPivot
-  let targetWheelState: WheelState[]|null = null
-  for (let attempt = 0; ; attempt++) {
-    // console.log('attempt', attempt)
-    // console.log('pivotAchievable:', rad2Deg(pivotAchievable.a), pivotAchievable.r)
+  /** The wheel state for the pivot point a given fraction of the way from the current pivot point to
+   * the target one, measured as steering curvature. */
+  const stateAtFraction = (fraction:number) => {
+    const pivot = fraction >= 1
+      ? targetPivot
+      : pivotFromCurvature({
+        x: curvatureCurrent.x + (curvatureTarget.x - curvatureCurrent.x) * fraction,
+        y: curvatureCurrent.y + (curvatureTarget.y - curvatureCurrent.y) * fraction,
+      }, targetPivot.a)
+    const rotation = rotationForPivot(pivot)
+    return { pivot, rotation, wheelState: calculateWheelStateForPivot(wheels, pivot, rotation, wheelTelemetry) }
+  }
 
-    const achievableWheelState = calculateWheelStateForPivot(wheels, pivotAchievable, targetRotationDelta, wheelTelemetry)
-    const achievableWheelAngles = achievableWheelState.map(ws => ws.angle)
+  /** Whether no wheel has to turn further than it can in one time step to take up these angles. */
+  const isReachable = (wheelState:WheelState[]) => wheelState.every((ws, wi) =>
+    Math.abs(normaliseAngle(ws.angle - wheelTelemetry[wi].angle)) <= maxWheelSteerDeltaPerFrame * 1.01)
 
-    // First time through the loop we get the target wheel state from calculateWheelStateForPivot(),
-    // record it for returning later.
-    if (targetWheelState === null) {
-      targetWheelState = achievableWheelState
+  const target = stateAtFraction(1)
+  const targetWheelState = target.wheelState
+  let achievable = target
+
+  if (!isReachable(targetWheelState)) {
+    // The pivot point the wheels are currently held at is where the search starts from and is taken
+    // as reachable; where the wheels have since been carried past it, holding them where they are is
+    // still the best that can be done.
+    achievable = stateAtFraction(0)
+    let reachableFraction = 0
+    let unreachableFraction = 1
+    // Halve the fraction until one of them is reachable. Halving rather than stepping down evenly
+    // because the fraction that is reachable is not of a known size: a small movement of the pivot
+    // point can be most of the way to it or a millionth of the way, depending on how far away it is.
+    for (let step = 0; step < PIVOT_SEARCH_DESCENT_STEPS; step++) {
+      const fraction = unreachableFraction / 2
+      const candidate = stateAtFraction(fraction)
+      if (isReachable(candidate.wheelState)) {
+        reachableFraction = fraction
+        achievable = candidate
+        break
+      }
+      unreachableFraction = fraction
     }
-
-    const achieveableVsActualAngleDeltas = achievableWheelAngles.map((achievableAngle, i) => normaliseAngle(achievableAngle - wheelTelemetry[i].angle))
-
-    // Determine which wheel would have to turn the most to achieve the target pivot point.
-    const indexOfWheelTurningTheMost = indexOfMaximum(achieveableVsActualAngleDeltas.map(Math.abs))
-
-    // console.log('    achievableWheelAngles', achievableWheelAngles.map(d => rad2Deg(d).toFixed(1)))
-    // console.log('    pivotAchievable:', pivotAchievable.x.toFixed(1), pivotAchievable.y.toFixed(1))
-    // console.log('    wheelAngleDeltas', wheelAngleDeltas.map(d => rad2Deg(d).toFixed(1)))
-    // console.log('    indexOfWheelTurningTheMost', indexOfWheelTurningTheMost)
-
-    // If found a pivot point (either the given target or an intermediate between current and target)
-    // where wheels do not have to turn more than they can during this time step,
-    // return the calculated new target wheel states for the new (possibly intermediate) target pivot point.
-    if (Math.abs(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) <= maxWheelSteerDeltaPerFrame * 1.01) {
-      // console.log('    found valid solution')
-
-      let rotationAchievable = targetRotationDelta
-      let speedReductionFactor = 1
-
-      // If any achievable wheel angles are too far from the target wheel angle, slow or stop driving.
-      const achieveableVsTargetAngleDeltas = achievableWheelAngles.map(
-        (achievableAngle, wi) => Math.abs(normaliseAngle(achievableAngle - targetWheelState[wi].angle))
-      )
-      // Also factor in how close the pivot point is to the wheel, if it's close it doesn't matter so much.
-      const wheelDistanceToPivot = wheelPositions.map(wheelPos => (vecLen(wheelPos.x - pivotAchievable.x, wheelPos.y - pivotAchievable.y)))
-      const achieveableVsTargetAngleDeltasDiscounted = achieveableVsTargetAngleDeltas.map((angleDelta, wi) =>
-        wheelDistanceToPivot[wi] > wheelPivotDistanceDiscountDistance
-          ? angleDelta // If greater than wheelPivotDistanceDiscountDistance mm then no discounting.
-          : (wheelDistanceToPivot[wi] / wheelPivotDistanceDiscountDistance) * angleDelta // If less than wheelPivotDistanceDiscountDistance mm then discount proportionally.
-      )
-      const maxAngleDiff = _.max(achieveableVsTargetAngleDeltasDiscounted)
-      if (maxAngleDiff > 0) {
-        speedReductionFactor
-          = maxAngleDiff >= wheelAngleToleranceForFullSpeed
-            ? 0
-            : 1 - maxAngleDiff / wheelAngleToleranceForFullSpeed
-      }
-
-      // If any wheels are set to go faster than possible (can happen for outside wheels when turning),
-      // scale speed back to achievable amount.
-      const maxWheelSpeed = _.max(achievableWheelState.map(ws => Math.abs(ws.speed)))
-      if (maxWheelSpeed > maxVehicleSpeed) {
-        speedReductionFactor = Math.min(speedReductionFactor, maxVehicleSpeed / maxWheelSpeed)
-      }
-
-      if (speedReductionFactor < 1) {
-        for (const ws of achievableWheelState) {
-          ws.speed *= speedReductionFactor
+    // Then close the gap between the reachable fraction and the unreachable one above it.
+    if (reachableFraction > 0) {
+      for (let step = 0; step < PIVOT_SEARCH_REFINE_STEPS; step++) {
+        const fraction = (reachableFraction + unreachableFraction) / 2
+        const candidate = stateAtFraction(fraction)
+        if (isReachable(candidate.wheelState)) {
+          reachableFraction = fraction
+          achievable = candidate
+        } else {
+          unreachableFraction = fraction
         }
-        rotationAchievable *= speedReductionFactor
-      }
-
-      return {
-        pivotAchievable,
-        rotationAchievable,
-        achievableWheelState,
-        targetWheelState,
       }
     }
+  }
 
-    if (attempt > wheels.length) {
-      throw Error('Could not determine valid wheel positions, too many attempts.')
+  const { pivot: pivotAchievable, wheelState: achievableWheelState } = achievable
+  let rotationAchievable = achievable.rotation
+  let speedReductionFactor = 1
+
+  // If any achievable wheel angles are too far from the target wheel angle, slow or stop driving.
+  const achieveableVsTargetAngleDeltas = achievableWheelState.map(
+    (ws, wi) => Math.abs(normaliseAngle((ws.angle - targetWheelState[wi].angle) * 2)) / 2
+  )
+  // Also factor in how close the pivot point is to the wheel, if it's close it doesn't matter so much.
+  const wheelDistanceToPivot = wheelPositions.map(wheelPos => (vecLen(wheelPos.x - pivotAchievable.x, wheelPos.y - pivotAchievable.y)))
+  const achieveableVsTargetAngleDeltasDiscounted = achieveableVsTargetAngleDeltas.map((angleDelta, wi) =>
+    wheelDistanceToPivot[wi] > wheelPivotDistanceDiscountDistance
+      ? angleDelta // If greater than wheelPivotDistanceDiscountDistance mm then no discounting.
+      : (wheelDistanceToPivot[wi] / wheelPivotDistanceDiscountDistance) * angleDelta // If less than wheelPivotDistanceDiscountDistance mm then discount proportionally.
+  )
+  const maxAngleDiff = _.max(achieveableVsTargetAngleDeltasDiscounted)
+  if (maxAngleDiff > 0) {
+    speedReductionFactor
+      = maxAngleDiff >= wheelAngleToleranceForFullSpeed
+        ? 0
+        : 1 - maxAngleDiff / wheelAngleToleranceForFullSpeed
+  }
+
+  // If any wheels are set to go faster than possible (can happen for outside wheels when turning),
+  // scale speed back to achievable amount.
+  const maxWheelSpeed = _.max(achievableWheelState.map(ws => Math.abs(ws.speed)))
+  if (maxWheelSpeed > maxVehicleSpeed) {
+    speedReductionFactor = Math.min(speedReductionFactor, maxVehicleSpeed / maxWheelSpeed)
+  }
+
+  if (speedReductionFactor < 1) {
+    for (const ws of achievableWheelState) {
+      ws.speed *= speedReductionFactor
     }
+    rotationAchievable *= speedReductionFactor
+  }
 
-    // Calculate an intermediate pivot point by calculating where the line perpendicular to the wheel
-    // that will turn the most intersects the line between the current and target pivot points.
-
-    // Get the line between current and target pivot points.
-    const pivotCurrent2TargetLine = new Flatten.Line(
-      new Flatten.Point(currentPivot.x, currentPivot.y),
-      new Flatten.Point(targetPivot.x, targetPivot.y)
-    )
-
-    // console.log('    currentPivot', currentPivot.x.toFixed(1), currentPivot.y.toFixed(1))
-    // console.log('    targetPivot', targetPivot.x.toFixed(1), targetPivot.y.toFixed(1))
-
-    Math.abs(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) >= Math.PI - maxWheelSteerDeltaPerFrame && console.log('go other way')
-
-    // For the wheel that had to turn the most, get the line perpendicular to it for the angle
-    // that it can achieve this time step.
-    const achieveableAngleForWheelTurningTheMost
-      = normaliseAngle(
-        wheelTelemetry[indexOfWheelTurningTheMost].angle + Math.PI / 2 // Normal to current orientation
-        + maxWheelSteerDeltaPerFrame // Plus the amount it can turn this time step
-        * Math.sign(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) // In the direction it needs to turn
-        // Flipped 180 if that would be closer to the target
-        * (Math.abs(achieveableVsActualAngleDeltas[indexOfWheelTurningTheMost]) >= Math.PI - maxWheelSteerDeltaPerFrame ? -1 : 1)
-      )
-    const achievablePerpendicularLineForWheelTurningTheMost = new Flatten.Line(
-      new Flatten.Point(wheelPositions[indexOfWheelTurningTheMost].x, wheelPositions[indexOfWheelTurningTheMost].y),
-      new Flatten.Vector(Math.cos(achieveableAngleForWheelTurningTheMost), Math.sin(achieveableAngleForWheelTurningTheMost))
-    )
-
-    // console.log('    newNormalForWheelTurningTheMost', rad2Deg(newNormalForWheelTurningTheMost).toFixed())
-    // console.log('    wheelPosition', wheelPositions[indexOfWheelTurningTheMost].x.toFixed(1), wheelPositions[indexOfWheelTurningTheMost].y.toFixed(1))
-    // console.log('    normVector', Math.cos(newNormalForWheelTurningTheMost).toFixed(1), Math.sin(newNormalForWheelTurningTheMost).toFixed(1))
-
-    // console.log('    achievableWheelAngleLine', achievableWheelAngleLine)
-
-    // Get intersection of the above lines.
-    const intersections = achievablePerpendicularLineForWheelTurningTheMost.intersect(pivotCurrent2TargetLine)
-    if (intersections.length !== 1) {
-      throw Error(`Could not determine valid wheel positions. ${intersections.length}`)
-    }
-
-    // console.log('    intersection', intersections[0])
-
-    pivotAchievable = getCoordFromPoint({ x: intersections[0].x, y: intersections[0].y })
+  return {
+    pivotAchievable,
+    rotationAchievable,
+    achievableWheelState,
+    targetWheelState,
   }
 }
 
@@ -349,18 +466,11 @@ const calculateWheelStateForPivot = (wheels: WheelState[], pivot:Coord, rotation
     // If the wheel needs to turn more than 90 degrees,
     // then turn the other way and reverse the direction.
     if (Math.abs(normaliseAngle(a - telemetry.angle)) >= Math.PI - maxWheelSteerDeltaPerFrame) {
-    // if (Math.abs(normaliseAngle(a - w.rotation)) > Math.PI / 2) {
-      // console.log('    rev', wi, rad2Deg(a), rad2Deg(normaliseAngle(a + Math.PI)))
       a = normaliseAngle(a + Math.PI)
       reversed = true
-    } else {
-      // console.log('    fwd', wi, rad2Deg(a))
     }
 
     const flipped = reversed ? !w.flipped : w.flipped
-    // const wheelDistanceToPivot = vecLen(wp.x - pivot.x, wp.y - pivot.y)
-    // const wheelDistanceToTravel = 2 * wheelDistanceToPivot * Math.sin(rotationDelta / 2)
-    // const speed = wheelDistanceToTravel * frameRate
 
     return {
       angle: a,

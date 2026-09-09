@@ -86,6 +86,10 @@ export type VehicleState = {
   /** Current signed steering curvature (reciprocal of the distance to the pivot point), positive for a
    * pivot point to the right of the vehicle and negative for one to the left. Used by DRIVE_MY_CAR. */
   pivotCurvature: number
+  /** For how many consecutive frames the commanded wheel angles have stayed where they are while the
+   * steering was still being asked to come back to straight ahead. A wheel that cannot turn holds
+   * the steering off straight for ever, and this is how that is noticed. */
+  steeringStalledFrames: number
   /** Current predicted pivot point in absolute coordinates */
   pivotAbs:Point
   /** Current predicted speed, mm/s */
