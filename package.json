@@ -40,8 +40,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "lint": "npx eslint src/** --fix",
-    "electron:start": "concurrently -k \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && electronmon --no-sandbox .\"",
-    "rebuild": "electron-rebuild"
+    "electron:start": "concurrently -k \"cross-env BROWSER=none npm start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_DEV_SERVER_URL=http://localhost:3000 electronmon --no-sandbox .\"",
+    "rebuild": "electron-rebuild",
+    "electron:built": "electron --no-sandbox build/electron.js"
   },
   "homepage": "./",
   "electronmon": {

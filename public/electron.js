@@ -19,6 +19,12 @@ const simulationMode = envTruthyValues.includes(
   (process.env.REACT_APP_SIMULATION_MODE ?? '').trim().toLowerCase()
 )
 
+/** Address of the Create React App development server, when the application is being run from it.
+ * `run.sh` runs the built bundle and leaves this unset; `rundev.sh` and `sim.sh` go by way of
+ * `npm run electron:start`, which sets it.
+ */
+const devServerURL = process.env.ELECTRON_DEV_SERVER_URL
+
 /** Size of the display in the hand-held controller, in pixels. */
 const controllerDisplaySize = { width: 1024, height: 600 }
 
@@ -45,16 +51,14 @@ function createWindow () {
     },
   })
 
-  // In production, set the initial browser path to the local bundle generated
-  // by the Create React App build process.
-  // In development, set it to localhost to allow live/hot-reloading.
-  const appURL = app.isPackaged
-    ? url.format({
-      pathname: path.join(__dirname, 'index.html'),
-      protocol: 'file:',
-      slashes: true,
-    })
-    : 'http://localhost:3000'
+  // The window is loaded from the development server when one is being used, and otherwise from the
+  // bundle sitting next to this file, which is what `npm run build` produces. `app.isPackaged` does
+  // not distinguish the two, because a built bundle run directly is not a packaged application.
+  const appURL = devServerURL || url.format({
+    pathname: path.join(__dirname, 'index.html'),
+    protocol: 'file:',
+    slashes: true,
+  })
   mainWindow.loadURL(appURL)
 
   // Automatically open Chrome's DevTools in development mode.
